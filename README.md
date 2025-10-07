@@ -23,7 +23,7 @@ Preview: https://htmlpreview.github.io/?https://github.com/6SD9/Todo-calendar-ht
 - 内嵌中文拼音输入法
 
 ## Use/使用
-Recommended to use together with Wallpaper Engine.
+Recommended to use together with Wallpaper Engine.<br></br>
 建议和wallpaper Engine搭配使用
 
 ### Quick test/快速测试
