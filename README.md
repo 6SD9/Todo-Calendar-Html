@@ -1,6 +1,7 @@
 # Todo-calendar-html
-这是一个轻量的日程待办壁纸html页面
-预览：https://htmlpreview.github.io/?https://github.com/6SD9/Todo-calendar-html/blob/main/Todo_calendar_wallpaper.html
+这是一个轻量的日程待办壁纸html页面。
+
+预览（无内嵌拼音输入法）：https://htmlpreview.github.io/?https://github.com/6SD9/Todo-calendar-html/blob/main/Todo_calendar_wallpaper.html
 
 ## 特征/Features
 - 快速添加/标记/删除待办
