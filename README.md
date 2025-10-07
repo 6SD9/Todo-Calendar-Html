@@ -24,3 +24,6 @@ wallpaper Engine主界面>>打开壁纸>>open from url>>
 http://localhost:8000/Todo_calendar_wallpaper.html
 ```
 注意：搭配wallpaper Engine使用时，必须隐藏桌面图标才能输入文字且系统中文输入法失效，请使用页面内嵌的拼音输入法。
+
+### 开机启动
+可以使用winsw，请参阅https://github.com/winsw/winsw
