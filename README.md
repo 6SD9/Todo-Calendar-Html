@@ -33,3 +33,6 @@ http://localhost:8000/Todo_calendar_wallpaper.html
 
 ### 其他
 拼音库由Google PinyinIME(Apache License)经过处理得到
+
+![Screenshot 2025-10-07 143324 ](https://github.com/user-attachments/assets/ebc55342-bb6b-473c-b701-712f9f2e98bb)
+
