@@ -27,3 +27,6 @@ http://localhost:8000/Todo_calendar_wallpaper.html
 
 ### 开机启动
 可以使用winsw，请参阅https://github.com/winsw/winsw
+
+### 其他
+拼音库由google PinyinIME(Apache License)经过处理得到
