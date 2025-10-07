@@ -1,0 +1,4203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Desktop</title>
+    <style>
+        :root {
+            --component-bg-opacity: 0.1;
+            --content-block-bg-opacity: 0.05;
+            --component-bg-rgb: 255, 255, 255;
+            --content-block-bg-rgb: 255, 255, 255;
+            --ui-text-rgb: 255, 255, 255;
+            --ui-text-color: #ffffff;
+            --content-text-rgb: 255, 255, 255;
+            --content-text-color: #ffffff;
+            --content-block-border-color: transparent;
+            --shadow-intensity: 1;
+            --font-scale: 1;
+            --progress-bar-height: 2;
+            font-size: calc(16px * var(--font-scale));
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        .desktop {
+            min-height: calc(100vh - 48px);
+            height: calc(100vh - 48px);
+            width: 100%;
+            display: flex;
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .settings-btn,
+        .today-btn,
+        .undo-btn {
+            background: rgba(var(--component-bg-rgb, 255, 255, 255), var(--component-bg-opacity, 0.1));
+            backdrop-filter: blur(16px);
+            border-radius: 16px;
+            padding: 12px 24px;
+            border: none;
+            color: var(--ui-text-color, white);
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1.125rem;
+            font-family: inherit;
+        }
+
+        .today-btn {
+            margin-left: 0;
+        }
+
+        .settings-btn:hover,
+        .today-btn:hover,
+        .undo-btn:hover {
+            background: rgba(var(--component-bg-rgb, 255, 255, 255), calc(var(--component-bg-opacity, 0.1) + 0.1));
+        }
+
+        .calendar-section {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1;
+        }
+
+        .calendar-container {
+            background: rgba(var(--component-bg-rgb, 255, 255, 255), var(--component-bg-opacity, 0.1));
+            backdrop-filter: blur(16px);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, calc(0.25 * var(--shadow-intensity)));
+        }
+
+        .calendar-title-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .title-text {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--ui-text-color, white);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .nav-arrow {
+            background: none;
+            border: none;
+            color: var(--ui-text-color, white);
+            font-size: 1rem;
+            cursor: pointer;
+            padding: 0.25rem;
+            border-radius: 0;
+            width: 1.5rem;
+            height: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s;
+        }
+
+        .nav-arrow:hover {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .day-headers {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .day-header {
+            text-align: center;
+            color: rgba(var(--ui-text-rgb, 255, 255, 255), 0.7);
+            font-weight: 600;
+            padding: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .calendar-weeks {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .calendar-week {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 0.5rem;
+        }
+
+        .calendar-day {
+            position: relative;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            font-weight: 500;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: rgba(var(--content-block-bg-rgb, 255, 255, 255), var(--content-block-bg-opacity, 0.05));
+            color: var(--content-text-color, rgba(255, 255, 255, 0.9));
+            font-size: 0.875rem;
+        }
+
+        .calendar-day:hover {
+            background: rgba(var(--content-block-bg-rgb, 255, 255, 255), calc(var(--content-block-bg-opacity, 0.05) + 0.15));
+        }
+
+        .calendar-day.today {
+            background: #fbbf24;
+            color: black;
+            box-shadow: 0 4px 12px rgba(251, 191, 36, calc(0.4 * var(--shadow-intensity)));
+            border: 2px solid #fcd34d;
+        }
+
+        .calendar-day.selected {
+            background: rgba(255, 255, 255, 0.3);
+            color: white;
+            box-shadow: 0 4px 12px rgba(255, 255, 255, calc(0.2 * var(--shadow-intensity)));
+            border: 2px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .task-count {
+            position: absolute;
+            top: -0.25rem;
+            right: -0.25rem;
+            background: #22c55e;
+            color: white;
+            font-size: 0.75rem;
+            border-radius: 50%;
+            width: 1.25rem;
+            height: 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .overdue-count {
+            position: absolute;
+            top: -0.25rem;
+            right: -0.25rem;
+            background: #ef4444;
+            color: white;
+            font-size: 0.75rem;
+            border-radius: 50%;
+            width: 1.25rem;
+            height: 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .right-panel {
+            position: absolute;
+            right: 2rem;
+            top: 2rem;
+            bottom: 3rem;
+            width: 33.333%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .todo-containers {
+            display: flex;
+            flex: 1;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .todo-column {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .todo-container {
+            background: rgba(var(--component-bg-rgb, 255, 255, 255), var(--component-bg-opacity, 0.1));
+            backdrop-filter: blur(16px);
+            border-radius: 1rem;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, calc(0.25 * var(--shadow-intensity)));
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .todo-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .todo-header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+
+        .todo-title {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: var(--ui-text-color, white);
+        }
+
+        .add-btn {
+            background: #3b82f6;
+            color: white;
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .add-btn:hover {
+            background: #2563eb;
+        }
+
+        .selected-date {
+            color: rgba(var(--ui-text-rgb, 255, 255, 255), 0.7);
+            font-size: 0.875rem;
+        }
+
+        .todo-content {
+            flex: 1;
+            padding: 1.5rem 1.5rem 3rem 1.5rem;
+            overflow-y: auto;
+            position: relative;
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+
+        .todo-content::-webkit-scrollbar {
+            display: none;
+        }
+
+        .time-grid {
+            display: grid;
+            grid-template-columns: 3.75rem 1fr;
+            grid-template-rows: repeat(14, 1fr);
+            gap: 0;
+            height: 100%;
+            position: relative;
+        }
+
+        .hour-label {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            color: rgba(var(--ui-text-rgb, 255, 255, 255), 0.7);
+            font-size: 0.875rem;
+            padding: 0.5rem 0 0 0;
+        }
+
+        .bottom-hour-label {
+            bottom: 0;
+            left: 1.5rem;
+            width: 3.75rem;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            color: rgba(var(--ui-text-rgb, 255, 255, 255), 0.7);
+            font-size: 0.875rem;
+            padding: 0.5rem 0 0 0;
+            z-index: 1;
+        }
+
+        .hour-divider {
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+            height: 0;
+        }
+
+        .no-tasks {
+            color: rgba(var(--ui-text-rgb, 255, 255, 255), 0.5);
+            text-align: center;
+            padding: 2rem 0;
+            font-size: 1rem;
+        }
+
+        .task-item {
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            position: relative;
+            font-size: 0.875rem;
+            height: 100%;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        .task-checkbox {
+            width: 1.25rem;
+            height: 1.25rem;
+            border-radius: 0.25rem;
+            border: 2px solid rgba(var(--ui-text-rgb, 255, 255, 255), 0.3);
+            background: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .task-checkbox.completed {
+            background: #22c55e;
+            border-color: #22c55e;
+        }
+
+        .task-checkbox:hover {
+            border-color: rgba(var(--ui-text-rgb, 255, 255, 255), 0.5);
+        }
+
+        .task-text {
+            flex: 1;
+            color: var(--content-text-color, white);
+            white-space: normal;
+            word-wrap: break-word;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            min-height: 1.5em;
+            line-height: 1.4;
+            max-height: 3em;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            line-clamp: 2;
+            -webkit-box-orient: vertical;
+        }
+
+        .task-text.completed {
+            text-decoration: line-through;
+            opacity: 0.5;
+        }
+
+        .recurring-mark {
+            color: #3b82f6;
+            font-size: 1.2em;
+            margin-left: 0.5rem;
+            margin-right: 0.5rem;
+        }
+
+        .delete-btn {
+            color: #f87171;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.25rem;
+            transition: color 0.2s;
+        }
+
+        .delete-btn:hover {
+            color: #fca5a5;
+        }
+
+        .redeploy-btn {
+            color: #60a5fa;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.25rem;
+            transition: color 0.2s;
+            margin-left: 0.25rem;
+            font-size: calc(1rem * var(--font-scale));
+            width: calc(1.5rem * var(--font-scale));
+            height: calc(1.5rem * var(--font-scale));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .redeploy-btn:hover {
+            color: #93c5fd;
+        }
+
+        .task-item.overdue {
+            border: 2px solid #ef4444 !important;
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.3);
+        }
+
+        .progress-bar {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: calc(var(--progress-bar-height) * 1px);
+            background: rgba(255, 255, 255, 0.8);
+            box-shadow: 0 0 4px rgba(255, 255, 255, 0.8);
+            z-index: 5;
+            transition: top 0.5s linear;
+        }
+
+        .clickable-slot {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            height: 100%;
+            width: 100%;
+            transition: background-color 0.2s;
+            z-index: 2;
+        }
+
+        .clickable-slot:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+        }
+
+        .modal {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(16px);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            width: 40rem;
+            margin: 0 1rem;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: var(--ui-text-color, white);
+            margin-bottom: 1rem;
+        }
+
+        .input-wrapper {
+            display: flex;
+            align-items: stretch;
+            margin-bottom: 1rem;
+        }
+
+        .task-input {
+            flex: 1;
+            padding: 0.75rem;
+            border-radius: 0.5rem 0 0 0.5rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-right: none;
+            color: var(--content-text-color, white);
+            font-size: 1rem;
+            min-height: 2.625rem;
+            max-height: 8rem;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-y: auto;
+            outline: none;
+            resize: none;
+            line-height: 1.4;
+        }
+
+        .task-input:focus {
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .mode-toggle {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-left: none;
+            border-right: none;
+            border-radius: 0;
+            padding: 0 0.75rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .mode-toggle:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .emoji-btn {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-left: none;
+            border-radius: 0 0.5rem 0.5rem 0;
+            padding: 0 0.75rem;
+            cursor: pointer;
+            font-size: 1.25rem;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .emoji-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .emoji-picker {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            max-width: 25rem;
+            z-index: 100;
+            color: white;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(2rem, 1fr));
+            gap: 0.25rem;
+        }
+
+        .emoji-picker button {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            border-radius: 0.25rem;
+            padding: 0.25rem;
+            transition: background 0.2s;
+        }
+
+        .emoji-picker button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .number-input-wrapper {
+            display: flex;
+            align-items: stretch;
+        }
+
+        .number-input {
+            flex: 1;
+            padding: 0.5rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-right: none;
+            border-radius: 0.5rem 0 0 0.5rem;
+            color: var(--content-text-color, white);
+            font-size: 1rem;
+            outline: none;
+        }
+
+        .number-input:focus {
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .inc-dec-wrapper {
+            display: flex;
+            flex-direction: column;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-left: none;
+            border-radius: 0 0.5rem 0.5rem 0;
+        }
+
+        .inc-dec-btn {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 0.75rem;
+            padding: 0.125rem;
+            transition: background 0.2s;
+        }
+
+        .inc-dec-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .candidate-list {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            max-width: 18.75rem;
+            z-index: 100;
+            color: white;
+        }
+
+        .candidate-item {
+            padding: 0.25rem;
+            font-size: 0.875rem;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: flex-end;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2563eb;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .settings-modal {
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .settings-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .close-btn {
+            color: rgba(255, 255, 255, 0.7);
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1.5rem;
+            padding: 0.25rem;
+        }
+
+        .close-btn:hover {
+            color: white;
+        }
+
+        .background-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.5rem;
+        }
+
+        .background-option {
+            width: 100%;
+            height: 2.5rem;
+            border-radius: 0.5rem;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .background-option.selected {
+            border-color: white;
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
+        }
+
+        .background-option:hover {
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.5rem;
+        }
+
+        .color-option {
+            width: 100%;
+            height: 2.5rem;
+            border-radius: 0.5rem;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .color-option.selected {
+            border-color: white;
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
+        }
+
+        .color-option:hover {
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .mode-buttons {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .mode-btn {
+            flex: 1;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+        }
+
+        .mode-btn.selected {
+            background: #3b82f6;
+        }
+
+        .mode-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .mode-btn.selected:hover {
+            background: #2563eb;
+        }
+
+        .icon {
+            display: inline-block;
+            width: 1.25rem;
+            height: 1.25rem;
+        }
+
+        .pinyin-span {
+            text-decoration: underline;
+            text-decoration-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .custom-bg-section {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .custom-bg-section h4 {
+            color: var(--ui-text-color, white);
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .custom-bg-input {
+            width: 100%;
+            padding: 0.5rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 0.5rem;
+            color: white;
+            margin-bottom: 0.5rem;
+            display: block;
+            font-size: 0.875rem;
+        }
+
+        .custom-bg-input::-webkit-file-upload-button {
+            font-size: 0.875rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            border-radius: 0.5rem;
+            padding: 0.5rem;
+            margin-right: 0.5rem;
+        }
+
+        .customization-section {
+            margin-bottom: 1rem;
+        }
+
+        .customization-section h4 {
+            color: var(--ui-text-color, white);
+            margin-bottom: 1rem;
+            font-size: 1rem;
+        }
+
+        .customization-item {
+            margin-bottom: 1rem;
+        }
+
+        .customization-item label {
+            display: block;
+            color: var(--ui-text-color, white);
+            margin-bottom: 0.25rem;
+            font-size: 0.875rem;
+        }
+
+        .customization-item input[type="range"] {
+            width: 100%;
+            margin-bottom: 0.25rem;
+        }
+
+        .customization-item input[type="color"] {
+            width: 100%;
+            height: 2.5rem;
+            border: none;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .bottom-buttons {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-top: auto;
+            margin-bottom: 1rem;
+        }
+
+        select {
+            font-size: 0.875rem;
+        }
+
+        select option {
+            color: #333333;
+            background: white;
+            font-size: 0.875rem;
+        }
+
+        #deadline-div {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        #deadline-div label {
+            display: block;
+            color: var(--ui-text-color, white);
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        #deadline-div .number-input-wrapper {
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+
+    <script src="http://localhost:25095/pinyin.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script>
+        // Simple icons as SVG strings
+        const icons = {
+            plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>',
+            x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>',
+            check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>'
+        };
+
+        const translations = {
+            en: {
+                'Interactive Desktop': 'Interactive Desktop',
+                'Settings': 'Settings',
+                'Back to Today': 'Back to Today',
+                'Undo': 'Undo',
+                'Daily Schedule': 'Daily Schedule',
+                'Today': 'Today',
+                'Tomorrow': 'Tomorrow',
+                'No tasks for this date': 'No tasks for this date',
+                'Add New Task': 'Add New Task',
+                'Start Hour': 'Start Hour',
+                'Duration (hours)': 'Duration (hours)',
+                'Repeat': 'Repeat',
+                'No Repeat': 'No Repeat',
+                'Daily': 'Daily',
+                'Weekly': 'Weekly',
+                'Every Two Days': 'Every Two Days',
+                'Every Three Days': 'Every Three Days',
+                'Every Four Days': 'Every Four Days',
+                'Every Five Days': 'Every Five Days',
+                'Repeat Duration': 'Repeat Duration',
+                'Weeks': 'Weeks',
+                'Months': 'Months',
+                'Cancel': 'Cancel',
+                'Add Task': 'Add Task',
+                'Select Month and Year': 'Select Month and Year',
+                'Set': 'Set',
+                'Custom Wallpaper': 'Custom Wallpaper',
+                'Set as Background': 'Set as Background',
+                'Schedule Management': 'Schedule Management',
+                'Import from File': 'Import from File',
+                'Copy to Clipboard': 'Copy to Clipboard',
+                'Export as Excel': 'Export as Excel',
+                'Reset Settings': 'Reset Settings',
+                'Clear All Data': 'Clear All Data',
+                'Customization': 'Customization',
+                'Component Background Opacity': 'Component Background Opacity',
+                'Content Block Background Opacity': 'Content Block Background Opacity',
+                'Shadow Intensity': 'Shadow Intensity',
+                'Font Scale': 'Font Scale',
+                'Progress Bar Height': 'Progress Bar Height',
+                'Todo View Mode': 'Todo View Mode',
+                'Single': 'Single',
+                'Double': 'Double',
+                'Content Block Background Color': 'Content Block Background Color',
+                'Component Background Color': 'Component Background Color',
+                'UI Text Color': 'UI Text Color',
+                'Content Text Color': 'Content Text Color',
+                'Content Block Border Color': 'Content Block Border Color',
+                'Content Block Border Thickness': 'Content Block Border Thickness',
+                'UI Language': 'UI Language',
+                'English': 'English',
+                'Chinese': 'Chinese',
+                'recurringPrefix': '[Recurring]',
+                'Confirm Clear All Data': 'Confirm Clear All Data',
+                'Are you sure you want to delete all saved data?': 'Are you sure you want to delete all saved data?',
+                'Yes': 'Yes',
+                'Confirm Reset Settings': 'Confirm Reset Settings',
+                'Are you sure you want to reset all settings to default?': 'Are you sure you want to reset all settings to default?',
+                'Conflicts Detected': 'Conflicts Detected',
+                'The following dates have conflicting tasks:': 'The following dates have conflicting tasks:',
+                'new tasks conflict': 'new tasks conflict',
+                'Choose priority:': 'Choose priority:',
+                'Keep Original': 'Keep Original',
+                'Use New (Replace Conflicting)': 'Use New (Replace Conflicting)',
+                'When using this schedule via URL, clearing web data may cause data loss.': 'When using this schedule via URL, clearing web data may cause data loss.',
+                'Task Colors': 'Task Colors',
+                'Background': 'Background',
+                'Border': 'Border',
+                'OK': 'OK',
+                'No schedules to copy.': 'No schedules to copy.',
+                'No schedules to export.': 'No schedules to export.',
+                'No border': 'No border',
+                'Default': 'Default',
+                'Schedule copied to clipboard!': 'Schedule copied to clipboard!',
+                'Schedule exported successfully!': 'Schedule exported successfully!',
+                'Failed to copy to clipboard.': 'Failed to copy to clipboard.',
+                'Failed to export schedule.': 'Failed to export schedule.',
+                'Failed to import schedule. Please check the file format.': 'Failed to import schedule. Please check the file format.',
+                'No deleted tasks to undo.': 'No deleted tasks to undo.',
+                'Delete Task': 'Delete Task',
+                'This is a recurring task. Choose what to delete:': 'This is a recurring task. Choose what to delete:',
+                'Delete this instance': 'Delete this instance',
+                'Delete the entire series': 'Delete the entire series'
+            },
+            zh: {
+                'Interactive Desktop': '互动桌面',
+                'Settings': '设置',
+                'Back to Today': '返回今天',
+                'Undo': '撤销',
+                'Daily Schedule': '每日日程',
+                'Today': '今天',
+                'Tomorrow': '明天',
+                'No tasks for this date': '此日期无任务',
+                'Add New Task': '添加新任务',
+                'Start Hour': '开始时间',
+                'Duration (hours)': '持续时间（小时）',
+                'Repeat': '重复',
+                'No Repeat': '不重复',
+                'Daily': '每天',
+                'Weekly': '每周',
+                'Every Two Days': '每两天（隔天）',
+                'Every Three Days': '每三天',
+                'Every Four Days': '每四天',
+                'Every Five Days': '每五天',
+                'Repeat Duration': '重复期限',
+                'Weeks': '周',
+                'Months': '月',
+                'Cancel': '取消',
+                'Add Task': '添加任务',
+                'Select Month and Year': '选择月份和年份',
+                'Set': '设置',
+                'Custom Wallpaper': '自定义壁纸',
+                'Set as Background': '设置为背景',
+                'Schedule Management': '日程管理',
+                'Import from File': '从文件导入日程',
+                'Copy to Clipboard': '复制日程到剪切板',
+                'Export as Excel': '导出日程到Excel',
+                'Reset Settings': '重置设置',
+                'Clear All Data': '清除所有数据',
+                'Customization': '自定义',
+                'Component Background Opacity': '组件背景不透明度',
+                'Content Block Background Opacity': '内容块不透明度',
+                'Shadow Intensity': '阴影强度',
+                'Font Scale': '字体缩放',
+                'Progress Bar Height': '进度条高度',
+                'Todo View Mode': '待办视图模式',
+                'Single': '单个',
+                'Double': '双个',
+                'Content Block Background Color': '内容块颜色',
+                'Component Background Color': '组件背景颜色',
+                'UI Text Color': 'UI 文本颜色',
+                'Content Text Color': '内容文本颜色',
+                'Content Block Border Color': '内容块边框颜色',
+                'Content Block Border Thickness': '内容块边框粗细',
+                'UI Language': 'UI 语言',
+                'English': 'English',
+                'Chinese': '中文',
+                'recurringPrefix': '【周期】',
+                'Confirm Clear All Data': '确认清除所有数据',
+                'Are you sure you want to delete all saved data?': '您确定要删除所有保存的数据吗？',
+                'Yes': '是',
+                'Confirm Reset Settings': '确认重置设置',
+                'Are you sure you want to reset all settings to default?': '您确定要将所有设置重置为默认值吗？',
+                'Conflicts Detected': '检测到冲突',
+                'The following dates have conflicting tasks:': '以下日期有冲突的任务：',
+                'new tasks conflict': '个新任务冲突',
+                'Choose priority:': '选择优先级：',
+                'Keep Original': '保留原有',
+                'Use New (Replace Conflicting)': '使用新导入（替换冲突）',
+                'When using this schedule via URL, clearing web data may cause data loss.': '通过url使用本日程代办的情况下，清理web数据容易造成数据丢失。',
+                'Task Colors': '任务颜色',
+                'Background': '背景',
+                'Border': '边框',
+                'OK': '确定',
+                'No schedules to copy.': '没有日程可复制。',
+                'No schedules to export.': '没有日程可导出。',
+                'No border': '无边框',
+                'Default': '默认',
+                'Schedule copied to clipboard!': '日程已复制到剪切板！',
+                'Schedule exported successfully!': '日程导出成功！',
+                'Failed to copy to clipboard.': '复制到剪切板失败。',
+                'Failed to export schedule.': '日程导出失败。',
+                'Failed to import schedule. Please check the file format.': '导入日程失败。请检查文件格式。',
+                'No deleted tasks to undo.': '没有可撤销的删除任务。',
+                'Delete Task': '删除任务',
+                'This is a recurring task. Choose what to delete:': '这是一个周期任务，选择要删除的内容：',
+                'Delete this instance': '删除本次',
+                'Delete the entire series': '删除整个重复'
+            }
+        };
+
+        const defaults = {
+            backgroundImage: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            custom: {
+                componentBgOpacity: 0.1,
+                contentBlockBgOpacity: 0.05,
+                componentBgColor: '#ffffff',
+                contentBlockBgColor: '#ffffff',
+                contentBlockBorderColor: 'transparent',
+                contentBlockBorderThickness: 0,
+                uiTextColor: '#ffffff',
+                contentTextColor: '#ffffff',
+                shadowIntensity: 1,
+                fontScale: 1,
+                todoMode: 'single',
+                progressBarHeight: 2,
+                useComponentOpacity: true,
+                useContentBlockOpacity: true
+            },
+            currentLanguage: 'en'
+        };
+
+        // Preset colors - Updated to ensure 8 simple, atmospheric, elegant, lively, fashionable options
+        const contentBlockBgPresets = [
+            '#FFFFFF', // Simple white
+            '#D8BFD8', // Atmospheric thistle purple (more elegant)
+            '#8A2BE2', // Elegant blue violet (richer tone)
+            '#DA70D6', // Lively orchid (more sophisticated)
+            '#FFB6C1', // Fashionable light pink (softer)
+            '#FFDAB9', // Elegant peach puff (warmer)
+            '#AFEEEE', // Atmospheric pale turquoise (more refined)
+            '#48D1CC', // Lively medium turquoise (balanced)
+            '#E6E6FA', // Simple lavender (softer)
+            '#D8BFD8', // Atmospheric thistle (consistent)
+            '#FFF5EE', // Elegant seashell (warmer)
+            '#F0FFF0', // Lively honeydew (softer)
+            '#FFE4E1', // Fashionable misty rose (more elegant)
+            '#E0FFFF', // Simple light cyan (softer)
+            '#F5FFFA', // Atmospheric mint cream (consistent)
+            '#FAFAD2',  // Elegant light goldenrod yellow (warmer)
+            '#D3D3D3', // Light gray (more refined)
+            '#A9A9A9', // Dark gray (balanced)
+            '#808080', // Gray
+            '#696969', // Dim gray (more elegant)
+        ];
+
+        const componentBgPresets = [
+            '#E6E6E6', // Simple light gray
+            '#C89CCB', // Atmospheric muted purple
+            '#7A658E', // Elegant deep lavender
+            '#B67BA2', // Fashionable rose
+            '#E6AFC0', // Lively soft pink
+            '#E6C6BA', // Elegant warm peach
+            '#99BFBF', // Atmospheric mint teal
+            '#519999',  // Lively teal
+            '#B3E5FC', // Simple light cyan
+            '#E1BEE7', // Atmospheric light purple
+            '#FFCCBC', // Elegant light orange
+            '#C8E6C9', // Lively light green
+            '#F8BBD9', // Fashionable light pink
+            '#B2EBF2', // Simple light teal
+            '#DCEDC8', // Atmospheric light lime
+            '#FFF9C4',  // Elegant light yellow
+            '#C0C0C0',
+            '#A0A0A0',
+            '#808080',
+            '#606060',
+        ];
+
+        const grayPresets = [
+            '#FFFFFF',
+            '#E0E0E0',
+            '#C0C0C0',
+            '#A0A0A0',
+            '#808080',
+            '#606060',
+            '#404040',
+            '#000000'
+        ];
+
+        // Border color presets (transparent + 7 grays from white to black)
+        const contentBlockBorderPresets = [
+            'transparent', // No border
+            '#FFFFFF',     // White
+            '#E0E0E0',     // Light gray
+            '#C0C0C0',     // Silver
+            '#A0A0A0',     // Medium gray
+            '#808080',     // Gray
+            '#606060',     // Dark gray
+            '#000000'      // Black
+        ];
+
+        // Task item background color presets (elegant, fashionable colors)
+        const taskItemBgPresets = [
+            '#5D8AA8',     // Elegant air force blue (reduced saturation)
+            '#4CBB17',     // Sophisticated kelly green (more refined)
+            '#FFD580',     // Refined light yellow (softer)
+            '#E97451',     // Stylish burnt sienna (more elegant)
+            '#DE5D83',     // Fashionable blush pink (more sophisticated)
+            '#40E0D0',     // Chic turquoise (balanced)
+            '#FF8C42'      // Trendy dark orange (more mature)
+        ];
+
+        // Performance optimization: Memory management
+        let eventListeners = [];
+        let activeTimers = [];
+        let lastCleanupTime = Date.now();
+        const CLEANUP_INTERVAL = 60000; // 1 minute cleanup interval
+
+        // Memory cleanup functions
+        function addEventListenerWithCleanup(element, event, handler) {
+            if (element && typeof element.addEventListener === 'function') {
+                element.addEventListener(event, handler);
+                eventListeners.push({ element, event, handler });
+            }
+        }
+
+        function cleanupEventListeners() {
+            eventListeners.forEach(({ element, event, handler }) => {
+                if (element && typeof element.removeEventListener === 'function') {
+                    element.removeEventListener(event, handler);
+                }
+            });
+            eventListeners = [];
+        }
+
+        function addTimer(timerId) {
+            if (timerId && !activeTimers.includes(timerId)) {
+                activeTimers.push(timerId);
+            }
+        }
+
+        function clearAllTimers() {
+            activeTimers.forEach(timerId => {
+                clearTimeout(timerId);
+                clearInterval(timerId);
+            });
+            activeTimers = [];
+        }
+
+        function performMemoryCleanup() {
+            const now = Date.now();
+            if (now - lastCleanupTime > CLEANUP_INTERVAL) {
+                console.log('Performing memory cleanup...');
+
+                // Clear any orphaned DOM elements
+                const orphanedElements = document.querySelectorAll('.modal-overlay');
+                orphanedElements.forEach(el => {
+                    if (el.style.display === 'none' || !el.offsetParent) {
+                        el.remove();
+                    }
+                });
+
+                // Performance optimization: Clear pinyin input cache
+                if (pinyinInputMethod && pinyinInputMethod.clearSearchCache) {
+                    pinyinInputMethod.clearSearchCache();
+                }
+
+                // Force garbage collection hint
+                if (window.gc) {
+                    window.gc();
+                }
+
+                lastCleanupTime = now;
+            }
+        }
+
+        // State management
+        let state = {
+            selectedDate: new Date(),
+            viewStartDate: null,
+            tasks: {},
+            deletedTasks: [],
+            showAddDialog: false,
+            initialStartHour: null,
+            maxDuration: null,
+            currentDateForAdd: null,
+            showSettings: false,
+            showConfirmClear: false,
+            showConfirmReset: false,
+            showMonthPicker: false,
+            showConflictDialog: false,
+            conflictInfo: {},
+            pendingConflicts: {},
+            showDeleteConfirm: false,
+            confirmTaskId: null,
+            confirmDateStr: null,
+            showRedeployDialog: false,
+            redeployTaskId: null,
+            redeployDateStr: null,
+            newTaskText: '',
+            backgroundImage: defaults.backgroundImage,
+            custom: defaults.custom,
+            currentLanguage: defaults.currentLanguage,
+            showAlertMessage: ''
+        };
+
+        // Performance optimization: Enhanced debounce mechanism for saveState
+        let saveTimeout = null;
+        let lastSaveTime = 0;
+        const SAVE_DEBOUNCE_DELAY = 2000; // Increased to 2 seconds for better performance
+        let pendingSaveData = null;
+        let isSaving = false;
+        
+        // IndexedDB database
+        let db = null;
+        const DB_NAME = 'InteractiveDesktopDB';
+        const DB_VERSION = 1;
+        const STORE_NAME = 'appState';
+        
+        // Incremental rendering mechanism
+        let renderScheduled = false;
+        let needsFullRender = false;
+        let needsCalendarUpdate = false;
+        let needsTodoUpdate = false;
+        let needsModalsUpdate = false;
+
+        const backgroundOptions = [
+            'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+            'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+            'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+            'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+            'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+            'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)',
+            'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)'
+        ];
+
+        // Persistence functions
+        function initIndexedDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => {
+                    db = request.result;
+                    resolve(db);
+                };
+                
+                request.onupgradeneeded = (event) => {
+                    const database = event.target.result;
+                    if (!database.objectStoreNames.contains(STORE_NAME)) {
+                        database.createObjectStore(STORE_NAME, { keyPath: 'id' });
+                    }
+                };
+            });
+        }
+
+        async function loadState() {
+            try {
+                // Initialize IndexedDB
+                if (!db) {
+                    await initIndexedDB();
+                }
+                
+                const transaction = db.transaction([STORE_NAME], 'readonly');
+                const store = transaction.objectStore(STORE_NAME);
+                const request = store.get('appState');
+                
+                request.onsuccess = () => {
+                    const saved = request.result;
+                    if (saved && saved.data) {
+                        const parsed = saved.data;
+                        if (parsed.selectedDate) {
+                            state.selectedDate = new Date(parsed.selectedDate);
+                        }
+                        if (parsed.viewStartDate) {
+                            state.viewStartDate = new Date(parsed.viewStartDate);
+                        }
+                        if (parsed.tasks) {
+                            state.tasks = parsed.tasks;
+                        }
+                        if (parsed.deletedTasks) {
+                            state.deletedTasks = parsed.deletedTasks;
+                        }
+                        if (parsed.backgroundImage) {
+                            state.backgroundImage = parsed.backgroundImage;
+                        }
+                        if (parsed.custom) {
+                            state.custom = parsed.custom;
+                        }
+                        if (parsed.currentLanguage) {
+                            state.currentLanguage = parsed.currentLanguage;
+                        }
+                    }
+                    
+                    // Set defaults if not present
+                    state.selectedDate.setHours(0, 0, 0, 0);
+                    if (state.viewStartDate) {
+                        state.viewStartDate.setHours(0, 0, 0, 0);
+                    } else {
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        const day = today.getDay();
+                        const currentWeekStart = new Date(today);
+                        currentWeekStart.setDate(today.getDate() - (day === 0 ? 6 : day - 1));
+                        state.viewStartDate = new Date(currentWeekStart);
+                        state.viewStartDate.setDate(currentWeekStart.getDate() - 7);
+                        state.viewStartDate.setHours(0, 0, 0, 0);
+                    }
+
+                    if (!state.backgroundImage) state.backgroundImage = defaults.backgroundImage;
+                    if (!state.custom) state.custom = { ...defaults.custom };
+                    if (!state.tasks) state.tasks = {};
+                    if (!state.deletedTasks) state.deletedTasks = [];
+                    if (!state.currentLanguage) state.currentLanguage = defaults.currentLanguage;
+                    if (typeof state.showDeleteConfirm === 'undefined') state.showDeleteConfirm = false;
+                    if (state.confirmTaskId === undefined) state.confirmTaskId = null;
+                    if (state.confirmDateStr === undefined) state.confirmDateStr = null;
+                    
+                    // Ensure full render after state is fully loaded
+                    fullRender();
+                };
+                
+                request.onerror = () => {
+                    console.error('Failed to load from IndexedDB:', request.error);
+                    // Continue with defaults
+                    setDefaultState();
+                    fullRender();
+                };
+                
+            } catch (e) {
+                console.error('Failed to load state:', e);
+                setDefaultState();
+                fullRender();
+            }
+        }
+
+        function setDefaultState() {
+            state.selectedDate.setHours(0, 0, 0, 0);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const day = today.getDay();
+            const currentWeekStart = new Date(today);
+            currentWeekStart.setDate(today.getDate() - (day === 0 ? 6 : day - 1));
+            state.viewStartDate = new Date(currentWeekStart);
+            state.viewStartDate.setDate(currentWeekStart.getDate() - 7);
+            state.viewStartDate.setHours(0, 0, 0, 0);
+
+            if (!state.backgroundImage) state.backgroundImage = defaults.backgroundImage;
+            if (!state.custom) state.custom = { ...defaults.custom };
+            if (!state.tasks) state.tasks = {};
+            if (!state.deletedTasks) state.deletedTasks = [];
+            if (!state.currentLanguage) state.currentLanguage = defaults.currentLanguage;
+        }
+
+        function saveState() {
+            // Prevent concurrent saves
+            if (isSaving) {
+                pendingSaveData = true;
+                return;
+            }
+
+            try {
+                isSaving = true;
+
+                const toSave = {
+                    selectedDate: state.selectedDate.toISOString(),
+                    viewStartDate: state.viewStartDate.toISOString(),
+                    tasks: state.tasks,
+                    deletedTasks: state.deletedTasks,
+                    backgroundImage: state.backgroundImage,
+                    custom: state.custom,
+                    currentLanguage: state.currentLanguage,
+                    showDeleteConfirm: state.showDeleteConfirm,
+                    confirmTaskId: state.confirmTaskId,
+                    confirmDateStr: state.confirmDateStr,
+                    lastSaved: Date.now()
+                };
+
+                // Save to IndexedDB
+                if (db) {
+                    const transaction = db.transaction([STORE_NAME], 'readwrite');
+                    const store = transaction.objectStore(STORE_NAME);
+                    store.put({ id: 'appState', data: toSave });
+
+                    transaction.oncomplete = () => {
+                        lastSaveTime = Date.now();
+                        showSaveIndicator(true);
+                        isSaving = false;
+
+                        // Trigger memory cleanup periodically
+                        performMemoryCleanup();
+
+                        // Save pending data if any
+                        if (pendingSaveData) {
+                            pendingSaveData = false;
+                            setTimeout(() => saveState(), 100);
+                        }
+                    };
+
+                    transaction.onerror = () => {
+                        console.error('Failed to save to IndexedDB:', transaction.error);
+                        showSaveIndicator(false);
+                        isSaving = false;
+                    };
+                } else {
+                    // Fallback to localStorage if IndexedDB not available
+                    localStorage.setItem('interactiveDesktopState', JSON.stringify(toSave));
+                    lastSaveTime = Date.now();
+                    showSaveIndicator(true);
+                    isSaving = false;
+                }
+            } catch (e) {
+                console.error('Failed to save state:', e);
+                showSaveIndicator(false);
+                isSaving = false;
+            }
+        }
+
+        function debouncedSaveState() {
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+                saveState();
+            }, SAVE_DEBOUNCE_DELAY);
+        }
+
+        // Schedule rendering for the next animation frame
+        function scheduleRender() {
+            if (renderScheduled) return;
+            
+            renderScheduled = true;
+            requestAnimationFrame(() => {
+                performScheduledRender();
+                renderScheduled = false;
+            });
+        }
+
+        // Perform the actual rendering based on needs
+        function performScheduledRender() {
+            if (needsFullRender) {
+                fullRender();
+            } else {
+                if (needsCalendarUpdate) renderCalendar();
+                if (needsTodoUpdate) renderTodo(state.selectedDate);
+                if (needsModalsUpdate) renderModals();
+            }
+            
+            // Reset flags
+            needsFullRender = needsCalendarUpdate = needsTodoUpdate = needsModalsUpdate = false;
+        }
+
+        // Mark what needs to be rendered
+        function requestFullRender() {
+            needsFullRender = true;
+            scheduleRender();
+        }
+
+        function requestCalendarUpdate() {
+            needsCalendarUpdate = true;
+            scheduleRender();
+        }
+
+        function requestTodoUpdate() {
+            needsTodoUpdate = true;
+            scheduleRender();
+        }
+
+        function requestModalsUpdate() {
+            needsModalsUpdate = true;
+            scheduleRender();
+        }
+
+        function showSaveIndicator(success) {
+            // Create or update save indicator
+            let indicator = document.getElementById('save-indicator');
+            if (!indicator) {
+                indicator = document.createElement('div');
+                indicator.id = 'save-indicator';
+                indicator.style.position = 'fixed';
+                indicator.style.bottom = '10px';
+                indicator.style.right = '10px';
+                indicator.style.padding = '5px 10px';
+                indicator.style.borderRadius = '4px';
+                indicator.style.fontSize = '12px';
+                indicator.style.zIndex = '1000';
+                indicator.style.transition = 'opacity 0.3s';
+                document.body.appendChild(indicator);
+            }
+            
+            if (success) {
+                indicator.textContent = '✓ 已保存';
+                indicator.style.backgroundColor = 'rgba(76, 175, 80, 0.9)';
+                indicator.style.color = 'white';
+            } else {
+                indicator.textContent = '✗ 保存失败';
+                indicator.style.backgroundColor = 'rgba(244, 67, 54, 0.9)';
+                indicator.style.color = 'white';
+            }
+            
+            indicator.style.opacity = '1';
+            
+            // Auto hide after 2 seconds
+            setTimeout(() => {
+                indicator.style.opacity = '0';
+            }, 2000);
+        }
+
+        function getInterval(repeat) {
+            switch(repeat) {
+                case 'daily': return 1;
+                case 'every2days': return 2;
+                case 'every3days': return 3;
+                case 'every4days': return 4;
+                case 'every5days': return 5;
+                case 'weekly': return 7;
+                default: return 1;
+            }
+        }
+
+        function updateVars() {
+            const root = document.documentElement;
+            root.style.setProperty('--component-bg-opacity', state.custom.useComponentOpacity ? state.custom.componentBgOpacity : 1);
+            root.style.setProperty('--content-block-bg-opacity', state.custom.useContentBlockOpacity ? state.custom.contentBlockBgOpacity : 1);
+            root.style.setProperty('--ui-text-color', state.custom.uiTextColor);
+            root.style.setProperty('--content-text-color', state.custom.contentTextColor);
+            root.style.setProperty('--content-block-border-color', state.custom.contentBlockBorderColor);
+            root.style.setProperty('--content-block-border-thickness', state.custom.contentBlockBorderThickness + 'px');
+            root.style.setProperty('--shadow-intensity', state.custom.shadowIntensity);
+            root.style.setProperty('--font-scale', state.custom.fontScale);
+            root.style.setProperty('--progress-bar-height', state.custom.progressBarHeight);
+
+            // Compute RGB for component bg
+            let hex = state.custom.componentBgColor.replace('#', '');
+            if (hex.length === 6) {
+                const r = parseInt(hex.substr(0, 2), 16);
+                const g = parseInt(hex.substr(2, 2), 16);
+                const b = parseInt(hex.substr(4, 2), 16);
+                root.style.setProperty('--component-bg-rgb', `${r}, ${g}, ${b}`);
+            }
+
+            // Compute RGB for content block bg
+            hex = state.custom.contentBlockBgColor.replace('#', '');
+            if (hex.length === 6) {
+                const r = parseInt(hex.substr(0, 2), 16);
+                const g = parseInt(hex.substr(2, 2), 16);
+                const b = parseInt(hex.substr(4, 2), 16);
+                root.style.setProperty('--content-block-bg-rgb', `${r}, ${g}, ${b}`);
+            }
+
+            // Compute RGB for UI text
+            hex = state.custom.uiTextColor.replace('#', '');
+            if (hex.length === 6) {
+                const r = parseInt(hex.substr(0, 2), 16);
+                const g = parseInt(hex.substr(2, 2), 16);
+                const b = parseInt(hex.substr(4, 2), 16);
+                root.style.setProperty('--ui-text-rgb', `${r}, ${g}, ${b}`);
+            }
+
+            // Compute RGB for content text
+            hex = state.custom.contentTextColor.replace('#', '');
+            if (hex.length === 6) {
+                const r = parseInt(hex.substr(0, 2), 16);
+                const g = parseInt(hex.substr(2, 2), 16);
+                const b = parseInt(hex.substr(4, 2), 16);
+                root.style.setProperty('--content-text-rgb', `${r}, ${g}, ${b}`);
+            }
+        }
+
+        // Task color selection functions
+        let selectedTaskBgColor = state.custom.contentBlockBgColor;
+        let selectedTaskBorderColor = state.custom.contentBlockBorderColor;
+
+        function selectTaskBgColor(color) {
+            selectedTaskBgColor = color;
+            // Update UI to show selected state
+            const buttons = document.querySelectorAll('[onclick^="selectTaskBgColor"]');
+            buttons.forEach(btn => {
+                btn.classList.toggle('selected', btn.getAttribute('onclick').includes(`'${color}'`));
+            });
+        }
+
+        function selectTaskBorderColor(color) {
+            selectedTaskBorderColor = color;
+            // Update UI to show selected state
+            const buttons = document.querySelectorAll('[onclick^="selectTaskBorderColor"]');
+            buttons.forEach(btn => {
+                btn.classList.toggle('selected', btn.getAttribute('onclick').includes(`'${color}'`));
+            });
+        }
+
+        function updateCustom(key, value) {
+            state.custom[key] = value;
+            updateVars();
+            saveState();
+            partialRender();
+            // Re-render modals if settings is open and it's a color change to update selected class
+            if (state.showSettings && ['componentBgColor', 'contentBlockBgColor', 'contentBlockBorderColor', 'uiTextColor', 'contentTextColor'].includes(key)) {
+                renderModals();
+            }
+        }
+
+        function updateLanguage(lang) {
+            state.currentLanguage = lang;
+            saveState();
+            fullRender(); // Language change affects text everywhere
+        }
+
+        function resetSettings() {
+            state.showConfirmReset = true;
+            renderModals();
+        }
+
+        function confirmReset() {
+            state.backgroundImage = defaults.backgroundImage;
+            state.custom = { ...defaults.custom };
+            updateVars();
+            saveState();
+            state.showConfirmReset = false;
+            state.showSettings = false;
+            fullRender(); // Full re-render for settings reset
+        }
+
+        function cancelReset() {
+            state.showConfirmReset = false;
+            renderModals();
+        }
+
+        function clearAllData() {
+            state.showConfirmClear = true;
+            renderModals();
+        }
+
+        async function confirmClear() {
+            try {
+                // Clear IndexedDB
+                if (db) {
+                    const transaction = db.transaction([STORE_NAME], 'readwrite');
+                    const store = transaction.objectStore(STORE_NAME);
+                    store.delete('appState');
+                }
+                // Also clear localStorage as fallback
+                localStorage.removeItem('interactiveDesktopState');
+            } catch (e) {
+                console.error('Failed to clear data:', e);
+            }
+            
+            state.tasks = {};
+            state.deletedTasks = [];
+            state.backgroundImage = defaults.backgroundImage;
+            state.custom = { ...defaults.custom };
+            state.selectedDate = new Date();
+            state.selectedDate.setHours(0, 0, 0, 0);
+            state.currentLanguage = defaults.currentLanguage;
+            updateVars();
+            state.showConfirmClear = false;
+            state.showSettings = false;
+            fullRender(); // Full re-render after clear
+        }
+
+        function cancelClear() {
+            state.showConfirmClear = false;
+            renderModals();
+        }
+
+        function showAlert(msg) {
+            state.showAlertMessage = msg;
+            renderModals();
+        }
+
+        function closeAlert() {
+            state.showAlertMessage = '';
+            renderModals();
+        }
+
+        function importSchedule() {
+            document.getElementById('import-file').click();
+        }
+
+        function excelDateToJSDate(excelDate) {
+            // Convert Excel serial date to JavaScript Date
+            const unixMs = (excelDate - 25569) * 86400 * 1000;
+            const date = new Date(unixMs);
+            date.setHours(0, 0, 0, 0);
+            return date;
+        }
+
+        async function handleImport(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            try {
+                let data;
+                let readType;
+                if (file.name.endsWith('.csv')) {
+                    data = await file.text();
+                    readType = 'string';
+                } else {
+                    data = await file.arrayBuffer();
+                    readType = 'array';
+                }
+                const wb = XLSX.read(data, { type: readType });
+                const ws = wb.Sheets[wb.SheetNames[0]];
+                const rows = XLSX.utils.sheet_to_json(ws).map(row => ({
+                    Date: row.Date,
+                    "Start Hour": row["Start Hour"],
+                    Duration: row.Duration,
+                    Task: row.Task,
+                    Completed: row.Completed
+                }));
+
+                let newTasksByDate = {};
+                rows.forEach((row, index) => {
+                    if (row.Date && row["Start Hour"] && row.Duration && row.Task) {
+                        let date;
+                        if (typeof row.Date === 'number') {
+                            date = excelDateToJSDate(row.Date);
+                        } else {
+                            date = new Date(row.Date);
+                        }
+                        if (isNaN(date.getTime())) return;
+                        const dateStr = date.toDateString();
+                        if (!newTasksByDate[dateStr]) newTasksByDate[dateStr] = [];
+                        newTasksByDate[dateStr].push({
+                            id: (Date.now() + index).toString(),
+                            text: row.Task,
+                            completed: !!row.Completed,
+                            startHour: parseInt(row["Start Hour"]),
+                            duration: parseInt(row.Duration),
+                            seriesId: null,
+                            repeat: 'none'
+                        });
+                    }
+                });
+
+                let pending = {};
+                let hasConflict = false;
+                Object.keys(newTasksByDate).forEach(dateStr => {
+                    if (!state.tasks[dateStr]) state.tasks[dateStr] = [];
+                    let existing = state.tasks[dateStr];
+                    let nonConf = [];
+                    let conf = [];
+                    newTasksByDate[dateStr].forEach(newT => {
+                        let overlaps = false;
+                        for (let ex of existing) {
+                            if (!(newT.startHour + newT.duration <= ex.startHour || newT.startHour >= ex.startHour + ex.duration)) {
+                                overlaps = true;
+                                break;
+                            }
+                        }
+                        if (overlaps) {
+                            conf.push(newT);
+                        } else {
+                            nonConf.push(newT);
+                        }
+                    });
+                    state.tasks[dateStr].push(...nonConf);
+                    state.tasks[dateStr].sort((a, b) => a.startHour - b.startHour);
+                    if (conf.length > 0) {
+                        pending[dateStr] = conf;
+                        hasConflict = true;
+                    }
+                });
+                saveState();
+                if (hasConflict) {
+                    let info = {};
+                    Object.keys(pending).forEach(d => {
+                        info[d] = pending[d].length;
+                    });
+                    state.showConflictDialog = true;
+                    state.conflictInfo = info;
+                    state.pendingConflicts = pending;
+                    requestModalsUpdate();
+                    requestCalendarUpdate(); // Update calendar for new tasks
+                } else {
+                    requestCalendarUpdate(); // Update calendar for new tasks
+                    requestTodoUpdate();
+                }
+            } catch (error) {
+                console.error('Import failed:', error);
+                showAlert(t('Failed to import schedule. Please check the file format.'));
+            }
+            e.target.value = ''; // Reset file input
+        }
+
+        async function copyScheduleToClipboard() {
+            const dateStrs = Object.keys(state.tasks).sort((a, b) => new Date(a) - new Date(b));
+            let text = 'Date\tStart Hour\tDuration\tTask\tCompleted\n';
+            dateStrs.forEach(dateStr => {
+                if (state.tasks[dateStr]) {
+                    const date = new Date(dateStr);
+                    const year = date.getFullYear();
+                    const month = date.getMonth() + 1;
+                    const day = date.getDate();
+                    const dateFormatted = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+                    state.tasks[dateStr].forEach(task => {
+                        text += `${dateFormatted}\t${task.startHour}\t${task.duration}\t${task.text}\t${task.completed ? 1 : 0}\n`;
+                    });
+                }
+            });
+            if (text === 'Date\tStart Hour\tDuration\tTask\tCompleted\n') {
+                showAlert(t("No schedules to copy."));
+                return;
+            }
+            try {
+                await navigator.clipboard.writeText(text);
+                showAlert(t('Schedule copied to clipboard!'));
+            } catch (err) {
+                console.error('Clipboard write failed:', err);
+                // Fallback to execCommand
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                textarea.style.position = 'fixed';
+                textarea.style.left = '-999999px';
+                document.body.appendChild(textarea);
+                textarea.focus();
+                textarea.select();
+                try {
+                    const successful = document.execCommand('copy');
+                    if (successful) {
+                        showAlert(t('Schedule copied to clipboard!'));
+                    } else {
+                        showAlert(t('Failed to copy to clipboard.'));
+                    }
+                } catch (ex) {
+                    console.error('ExecCommand failed:', ex);
+                    showAlert(t('Failed to copy to clipboard.'));
+                } finally {
+                    document.body.removeChild(textarea);
+                }
+            }
+        }
+
+        async function exportScheduleToExcel() {
+            const dateStrs = Object.keys(state.tasks).sort((a, b) => new Date(a) - new Date(b));
+            
+            if (dateStrs.length === 0) {
+                showAlert(t("No schedules to export."));
+                return;
+            }
+
+            // Prepare data in the same format as import expects
+            const data = [
+                ['Date', 'Start Hour', 'Duration', 'Task', 'Completed'] // Header row
+            ];
+
+            dateStrs.forEach(dateStr => {
+                if (state.tasks[dateStr]) {
+                    const date = new Date(dateStr);
+                    const year = date.getFullYear();
+                    const month = date.getMonth() + 1;
+                    const day = date.getDate();
+                    const dateFormatted = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+                    
+                    state.tasks[dateStr].forEach(task => {
+                        data.push([
+                            dateFormatted,
+                            task.startHour,
+                            task.duration,
+                            task.text,
+                            task.completed ? 1 : 0
+                        ]);
+                    });
+                }
+            });
+
+            try {
+                // Create workbook and worksheet
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.aoa_to_sheet(data);
+                
+                // Set column widths for better readability
+                const colWidths = [
+                    {wch: 12}, // Date
+                    {wch: 10}, // Start Hour
+                    {wch: 10}, // Duration
+                    {wch: 40}, // Task
+                    {wch: 10}  // Completed
+                ];
+                ws['!cols'] = colWidths;
+                
+                XLSX.utils.book_append_sheet(wb, ws, 'Schedule');
+                
+                // Generate filename with current date
+                const now = new Date();
+                const filename = `schedule_export_${now.getFullYear()}${(now.getMonth()+1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}.xlsx`;
+                
+                // Export to file
+                XLSX.writeFile(wb, filename);
+                
+                showAlert(t('Schedule exported successfully!'));
+            } catch (error) {
+                console.error('Export failed:', error);
+                showAlert(t('Failed to export schedule.'));
+            }
+        }
+
+        // Helper functions
+        function t(key) {
+            return translations[state.currentLanguage][key] || key;
+        }
+
+        function isToday(date) {
+            const today = new Date();
+            return date.toDateString() === today.toDateString();
+        }
+
+        function isTomorrow(date) {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            return date.toDateString() === tomorrow.toDateString();
+        }
+
+        function isSelected(date) {
+            return date.toDateString() === state.selectedDate.toDateString();
+        }
+
+        function isPastDate(date) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            date.setHours(0, 0, 0, 0);
+            return date < today;
+        }
+
+        function isTaskOverdue(task, date) {
+            if (task.completed) return false;
+
+            const now = new Date();
+            const taskDate = new Date(date);
+
+            // 如果是过去日期，任务肯定过期
+            if (isPastDate(taskDate)) return true;
+
+            // 如果是今天，检查任务结束时间是否已过10分钟
+            if (isToday(taskDate)) {
+                const taskEndTime = new Date(taskDate);
+                taskEndTime.setHours(task.startHour + task.duration, 10, 0, 0); // 结束时间后10分钟
+                return now > taskEndTime;
+            }
+
+            return false;
+        }
+
+        function getTaskById(taskId, dateStr) {
+            if (state.tasks[dateStr]) {
+                return state.tasks[dateStr].find(t => t.id === taskId);
+            }
+            return null;
+        }
+
+        function findNextAvailableSlot(duration) {
+            const now = new Date();
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            // 从今天开始查找未来7天
+            for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+                const checkDate = new Date(today);
+                checkDate.setDate(today.getDate() + dayOffset);
+                const dateStr = checkDate.toDateString();
+
+                const tasks = state.tasks[dateStr] || [];
+
+                // 查找空闲时段（8点到21点）
+                for (let hour = 8; hour <= 21 - duration; hour++) {
+                    let isAvailable = true;
+
+                    // 检查是否与现有任务冲突
+                    for (const task of tasks) {
+                        const taskStart = task.startHour;
+                        const taskEnd = task.startHour + task.duration;
+
+                        if (!(hour + duration <= taskStart || hour >= taskEnd)) {
+                            isAvailable = false;
+                            break;
+                        }
+                    }
+
+                    // 如果是今天，检查时间是否已经过去
+                    if (isToday(checkDate) && hour < now.getHours() + 1) {
+                        isAvailable = false;
+                    }
+
+                    if (isAvailable) {
+                        return { startHour: hour, date: checkDate };
+                    }
+                }
+            }
+
+            // 如果没有找到可用时段，返回默认值
+            return { startHour: 8, date: today };
+        }
+
+        function formatDate(date) {
+            const locale = state.currentLanguage === 'zh' ? 'zh-CN' : 'en-US';
+            return date.toLocaleDateString(locale, { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+        }
+
+        function getTasksForDate(date) {
+            const dateStr = date.toDateString();
+            return state.tasks[dateStr] || [];
+        }
+
+        function generateCalendarWeeks() {
+            const startDate = new Date(state.viewStartDate);
+            const weeks = [];
+            for (let week = 0; week < 4; week++) {
+                const days = [];
+                for (let day = 0; day < 7; day++) {
+                    const date = new Date(startDate);
+                    date.setDate(startDate.getDate() + (week * 7) + day);
+                    days.push(date);
+                }
+                weeks.push(days);
+            }
+            return weeks;
+        }
+
+        function generateCalendarHTML() {
+            const calendarWeeks = generateCalendarWeeks();
+            const locale = state.currentLanguage === 'zh' ? 'zh-CN' : 'en-US';
+            const dayHeaders = state.currentLanguage === 'en' ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] : ['日', '一', '二', '三', '四', '五', '六'];
+            const months = state.currentLanguage === 'en' ? ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'] : ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
+
+            return `
+                <div class="calendar-section">
+                    <div class="calendar-container">
+                        <div class="calendar-title-container">
+                            <button class="nav-arrow" onclick="shiftWeek(-1)">&#9664;</button>
+                            <span class="title-text" onclick="openMonthPicker()">${state.selectedDate ? state.selectedDate.toLocaleDateString(locale, { month: 'long', year: 'numeric' }) : ''}</span>
+                            <button class="nav-arrow" onclick="shiftWeek(1)">&#9654;</button>
+                        </div>
+                        
+                        <div class="day-headers">
+                            ${dayHeaders.map(day => 
+                                `<div class="day-header">${day}</div>`
+                            ).join('')}
+                        </div>
+
+                        <div class="calendar-weeks">
+                            ${calendarWeeks.map(week => `
+                                <div class="calendar-week">
+                                    ${week.map(date => {
+                                        const incompleteTasks = getTasksForDate(date).filter(t => !t.completed);
+                                        const tasksCount = incompleteTasks.length;
+                                        const classes = ['calendar-day'];
+                                        if (isToday(date)) classes.push('today');
+                                        if (isSelected(date)) classes.push('selected');
+
+                                        // Use different count styles based on date
+                                        let countHTML = '';
+                                        if (tasksCount > 0) {
+                                            if (isPastDate(date)) {
+                                                countHTML = `<div class="overdue-count">${tasksCount}</div>`;
+                                            } else {
+                                                countHTML = `<div class="task-count">${tasksCount}</div>`;
+                                            }
+                                        }
+
+                                        return `
+                                            <button class="${classes.join(' ')}" onclick="selectDate(new Date('${date.toISOString()}'))">
+                                                ${date.getDate()}
+                                                ${countHTML}
+                                            </button>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderCalendar() {
+            const calendarSection = document.querySelector('.calendar-section');
+            if (calendarSection) {
+                const newHTML = generateCalendarHTML();
+                // Only update if content actually changed
+                if (calendarSection.outerHTML !== newHTML) {
+                    calendarSection.outerHTML = newHTML;
+                }
+            }
+        }
+
+        function shiftWeek(delta) {
+            state.viewStartDate.setDate(state.viewStartDate.getDate() + delta * 7);
+            saveState();
+            renderCalendar();
+        }
+
+        function openMonthPicker() {
+            state.showMonthPicker = true;
+            renderModals();
+            setTimeout(() => {
+                const yearSel = document.getElementById('year-select');
+                const monthSel = document.getElementById('month-select');
+                if (yearSel) yearSel.value = state.viewStartDate.getFullYear();
+                if (monthSel) monthSel.value = state.viewStartDate.getMonth() + 1;
+            }, 100);
+        }
+
+        function closeMonthPicker() {
+            state.showMonthPicker = false;
+            renderModals();
+        }
+
+        function setMonthYear(yearStr, monthStr) {
+            const year = parseInt(yearStr);
+            const month = parseInt(monthStr);
+            const firstDay = new Date(year, month - 1, 1);
+            const day = firstDay.getDay();
+            let monday = new Date(firstDay);
+            monday.setDate(firstDay.getDate() - (day === 0 ? 6 : day - 1));
+            state.viewStartDate = new Date(monday);
+            state.viewStartDate.setDate(monday.getDate() - 7);
+            state.viewStartDate.setHours(0, 0, 0, 0);
+            closeMonthPicker();
+            saveState();
+            renderCalendar();
+        }
+
+        function renderTodoHTML(date, isPrimary = true) {
+            const currentTasks = getTasksForDate(date);
+            const dateStr = date.toDateString();
+            const showProgress = isToday(date);
+            let hourDividers = '';
+            for (let i = 0; i < 13; i++) {
+                const r = i + 2;
+                if (r === 6 || r === 11) continue;
+                hourDividers += `<div class="hour-divider" style="grid-row: ${r}; grid-column: 1 / -1;"></div>`;
+            }
+            let clickables = '';
+            for (let i = 0; i < 14; i++) {
+                const h = 8 + i;
+                const isOccupied = currentTasks.some(task => task.startHour <= h && h < task.startHour + task.duration);
+                let isPast = false;
+                if (isToday(date)) {
+                    const now = new Date();
+                    const ch = now.getHours();
+                    const cm = now.getMinutes();
+                    isPast = h < ch || (h === ch && cm > 0);
+                }
+                if (!isOccupied && !isPast) {
+                    clickables += `<button class="clickable-slot" style="grid-row: ${i + 1}; grid-column: 2;" onclick="openAddDialog(${h}, new Date('${dateStr}'))"></button>`;
+                }
+            }
+            return `
+                <div class="todo-column">
+                    <div class="todo-container">
+                        <div class="todo-header">
+                            <div class="todo-header-content">
+                                <h3 class="todo-title">${isToday(date) ? t('Today') : isTomorrow(date) ? t('Tomorrow') : t('Daily Schedule')}</h3>
+                            </div>
+                            <p class="selected-date">${formatDate(date)}</p>
+                        </div>
+
+                        <div class="todo-content">
+                            <div class="time-grid">
+                                <!-- Section backgrounds -->
+                                <div style="grid-column: 1 / -1; grid-row: 1 / 6; background: rgba(130, 130, 130, 0.1); border-top: 2px solid rgba(255, 255, 255, 0.3); border-bottom: 2px solid rgba(255, 255, 255, 0.3);"></div>
+                                <div style="grid-column: 1 / -1; grid-row: 6 / 11; background: rgba(130, 130, 130, 0.1); border-bottom: 2px solid rgba(255, 255, 255, 0.3);"></div>
+                                <div style="grid-column: 1 / -1; grid-row: 11 / 15; background: rgba(130, 130, 130, 0.1); border-bottom: 2px solid rgba(255, 255, 255, 0.3);"></div>
+
+                                <!-- Hour labels -->
+                                ${Array.from({length: 14}, (_, i) => {
+                                    const hour = 8 + i;
+                                    return `<div class="hour-label" style="grid-row: ${i + 1}; grid-column: 1;">${hour}:00</div>`;
+                                }).join('')}
+
+                                <!-- Hour dividers -->
+                                ${hourDividers}
+
+                                <!-- Tasks -->
+                                ${currentTasks.map(task => {
+                                    const rowStart = task.startHour - 7;
+                                    const rowEnd = rowStart + task.duration;
+                                    const taskIdStr = typeof task.id === 'string' ? task.id : task.id.toString();
+                                    const escapedId = taskIdStr.replace(/'/g, "\\'");
+                                    const bgColor = task.backgroundColor || state.custom.contentBlockBgColor;
+                                    const borderColor = task.borderColor || state.custom.contentBlockBorderColor;
+                                    const bgStyle = bgColor.startsWith('#') ? bgColor : `rgba(var(--content-block-bg-rgb, 255, 255, 255), var(--content-block-bg-opacity, 0.05))`;
+                                    return `
+                                        <div class="task-item ${isTaskOverdue(task, date) ? 'overdue' : ''}" style="grid-row: ${rowStart} / ${rowEnd}; grid-column: 2; background: ${bgStyle}; border: ${state.custom.contentBlockBorderThickness}px solid ${borderColor};">
+                                            <button class="task-checkbox ${task.completed ? 'completed' : ''}" onclick="toggleTask('${escapedId}', new Date('${dateStr}'))">
+                                                ${task.completed ? `<span class="icon" style="color: white;">${icons.check}</span>` : ''}
+                                            </button>
+                                            <span class="task-text ${task.completed ? 'completed' : ''}">${task.seriesId ? t('recurringPrefix') : ''}${task.text}</span>
+                                            ${isTaskOverdue(task, date) ? `
+                                                <button class="redeploy-btn" onclick="openRedeployDialog('${escapedId}', new Date('${dateStr}'))" title="${t('Redeploy Task')}">
+                                                    <span class="icon">↻</span>
+                                                </button>
+                                            ` : ''}
+                                            <button class="delete-btn" onclick="deleteTask('${escapedId}', new Date('${dateStr}'))">
+                                                <span class="icon">${icons.x}</span>
+                                            </button>
+                                        </div>
+                                    `;
+                                }).join('')}
+
+                                <!-- Clickable slots for adding tasks -->
+                                ${clickables}
+
+                                ${showProgress ? `<div id="progress-bar-${dateStr}" class="progress-bar"></div>` : ''}
+                            </div>
+                            <div class="bottom-hour-label">22:00</div>
+
+                            ${currentTasks.length === 0 ? `<p class="no-tasks" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">${t('No tasks for this date')}</p>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderTodo(date) {
+            const todoContainers = document.querySelector('.todo-containers');
+            if (todoContainers) {
+                let newHTML;
+                if (state.custom.todoMode === 'single') {
+                    newHTML = renderTodoHTML(date);
+                } else {
+                    const nextDate = new Date(date);
+                    nextDate.setDate(nextDate.getDate() + 1);
+                    newHTML = renderTodoHTML(date) + renderTodoHTML(nextDate, false);
+                }
+                
+                // Only update if content actually changed
+                if (todoContainers.innerHTML !== newHTML) {
+                    todoContainers.innerHTML = newHTML;
+                    
+                    // Update progress bars after rendering
+                    if (isToday(date)) {
+                        updateProgressBar(date.toDateString());
+                    }
+                    if (state.custom.todoMode === 'double') {
+                        const nextDate = new Date(date);
+                        nextDate.setDate(nextDate.getDate() + 1);
+                        if (isToday(nextDate)) {
+                            updateProgressBar(nextDate.toDateString());
+                        }
+                    }
+                }
+            }
+        }
+
+        // Enhanced Chinese Pinyin Input Method with Performance Optimizations
+        class PinyinInputMethod {
+            constructor() {
+                this.pinyinBuffer = '';
+                this.candidateDiv = null;
+                this.compositionSpan = null;
+                this.inputMode = 'zh'; // Default to Chinese
+                this.shiftIsDown = false;
+                this.shiftPressedAlone = true;
+                this.currentPage = 0;
+                this.emojiPickerDiv = null;
+                this.currentCandidates = [];
+                this.selectedIndex = 0;
+                this.isComposing = false;
+
+                // Performance optimization: Debounce and caching
+                this.searchDebounceTimer = null;
+                this.searchDebounceDelay = 100; // 300ms debounce
+                this.lastSearchQuery = '';
+                this.lastSearchResult = [];
+                this.candidateCache = new Map(); // Cache for search results
+
+                this.emojis = ["🚩","☀️","⭐","🔥","❤️","🎉","🎞️","🎡","🎨","🎭","🛒","👠","🎓","🏀","🎲","🕹️","🎵","⚒️","💊","📷","🍕","🚗","✈️","💻","📖","💡","㊙️","🔍","💾","🎥","🔑","🔒","⚠️","☢️","🏃","👍","👎","✊","👋","🤝","👪"];
+            }
+
+            showCandidates(input) {
+                this.hideCandidates();
+
+                if (this.currentCandidates.length === 0) return;
+
+                this.candidateDiv = document.createElement('div');
+                this.candidateDiv.className = 'candidates-container';
+                this.candidateDiv.style.position = 'absolute';
+                this.candidateDiv.style.background = 'rgba(255, 255, 255, 0.95)';
+                this.candidateDiv.style.borderRadius = '8px';
+                this.candidateDiv.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+                this.candidateDiv.style.maxWidth = '300px';
+                this.candidateDiv.style.zIndex = '1000';
+                this.candidateDiv.style.padding = `${8 * (state.custom.fontScale || 1)}px`;
+
+                const displayed = this.currentCandidates.slice(this.currentPage * 9, (this.currentPage + 1) * 9);
+                displayed.forEach((candidate, localIndex) => {
+                    const item = document.createElement('div');
+                    item.className = 'candidate-item';
+                    if (localIndex === this.selectedIndex) {
+                        item.style.background = '#667eea';
+                        item.style.color = 'white';
+                    }
+                    item.style.padding = `${8 * (state.custom.fontScale || 1)}px ${12 * (state.custom.fontScale || 1)}px`;
+                    item.style.cursor = 'pointer';
+                    item.style.borderRadius = '4px';
+                    item.style.marginBottom = `${2 * (state.custom.fontScale || 1)}px`;
+                    item.style.fontSize = `${14 * (state.custom.fontScale || 1)}px`;
+                    item.style.display = 'flex';
+                    item.style.justifyContent = 'space-between';
+                    item.style.alignItems = 'center';
+
+                    const candidateText = document.createElement('span');
+                    candidateText.textContent = `${localIndex + 1}. ${candidate.text}`;
+
+                    const pinyinText = document.createElement('span');
+                    pinyinText.textContent = candidate.pinyin;
+                    pinyinText.style.fontSize = `${12 * (state.custom.fontScale || 1)}px`;
+                    pinyinText.style.opacity = '0.7';
+                    pinyinText.style.marginLeft = `${8 * (state.custom.fontScale || 1)}px`;
+
+                    item.appendChild(candidateText);
+                    item.appendChild(pinyinText);
+
+                    item.addEventListener('click', () => {
+                        this.selectCandidate(localIndex);
+                    });
+
+                    this.candidateDiv.appendChild(item);
+                });
+
+                const rect = input.getBoundingClientRect();
+                this.candidateDiv.style.top = `${rect.bottom + window.scrollY + 2}px`;
+                this.candidateDiv.style.left = `${rect.left + window.scrollX}px`;
+                document.body.appendChild(this.candidateDiv);
+            }
+
+            hideCandidates() {
+                if (this.candidateDiv) {
+                    this.candidateDiv.remove();
+                    this.candidateDiv = null;
+                }
+                if (this.emojiPickerDiv) {
+                    this.emojiPickerDiv.remove();
+                    this.emojiPickerDiv = null;
+                }
+            }
+
+            toggleEmojiPicker(input) {
+                if (this.emojiPickerDiv) {
+                    this.emojiPickerDiv.remove();
+                    this.emojiPickerDiv = null;
+                } else {
+                    this.showEmojiPicker(input);
+                }
+            }
+
+            showEmojiPicker(input) {
+                if (!input) return;
+
+                this.hideCandidates();
+
+                this.emojiPickerDiv = document.createElement('div');
+                this.emojiPickerDiv.className = 'emoji-picker';
+                this.emojiPickerDiv.style.position = 'absolute';
+                this.emojiPickerDiv.style.background = 'rgba(255, 255, 255, 0.95)';
+                this.emojiPickerDiv.style.borderRadius = '8px';
+                this.emojiPickerDiv.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+                this.emojiPickerDiv.style.maxWidth = '300px';
+                this.emojiPickerDiv.style.zIndex = '1000';
+                this.emojiPickerDiv.style.padding = `${8 * (state.custom.fontScale || 1)}px`;
+                this.emojiPickerDiv.style.display = 'grid';
+                this.emojiPickerDiv.style.gridTemplateColumns = 'repeat(auto-fit, minmax(32px, 1fr))';
+                this.emojiPickerDiv.style.gap = `${4 * (state.custom.fontScale || 1)}px`;
+
+                this.emojis.forEach(emoji => {
+                    const btn = document.createElement('button');
+                    btn.textContent = emoji;
+                    btn.style.background = 'none';
+                    btn.style.border = 'none';
+                    btn.style.fontSize = `${20 * (state.custom.fontScale || 1)}px`;
+                    btn.style.cursor = 'pointer';
+                    btn.style.borderRadius = '4px';
+                    btn.style.padding = `${4 * (state.custom.fontScale || 1)}px`;
+                    btn.style.transition = 'background 0.2s';
+                    btn.onmouseover = () => btn.style.background = 'rgba(0,0,0,0.1)';
+                    btn.onmouseout = () => btn.style.background = 'none';
+                    btn.onclick = () => this.insertEmoji(input, emoji);
+                    this.emojiPickerDiv.appendChild(btn);
+                });
+
+                const rect = input.getBoundingClientRect();
+                this.emojiPickerDiv.style.top = `${rect.bottom + window.scrollY + 2}px`;
+                this.emojiPickerDiv.style.left = `${rect.left + window.scrollX}px`;
+                document.body.appendChild(this.emojiPickerDiv);
+            }
+
+            insertEmoji(input, emoji) {
+                if (!input) return;
+
+                const selection = window.getSelection();
+                if (selection.rangeCount > 0) {
+                    const range = selection.getRangeAt(0);
+                    range.deleteContents();
+                    range.insertNode(document.createTextNode(emoji));
+                    range.collapse(false);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                } else {
+                    input.appendChild(document.createTextNode(emoji));
+                }
+
+                currentInputValue = input.textContent;
+                updateAddButton();
+
+                if (this.emojiPickerDiv) {
+                    this.emojiPickerDiv.remove();
+                    this.emojiPickerDiv = null;
+                }
+            }
+
+            commitPinyinAsEnglish(input) {
+                if (this.compositionSpan && this.pinyinBuffer) {
+                    // 将拼音组合span转换为普通文本
+                    const selection = window.getSelection();
+                    if (selection.rangeCount > 0) {
+                        const range = selection.getRangeAt(0);
+                        // 在当前位置插入拼音文本
+                        const textNode = document.createTextNode(this.pinyinBuffer);
+                        range.insertNode(textNode);
+                        range.setStartAfter(textNode);
+                        range.collapse(true);
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                    }
+
+                    // 移除拼音组合span
+                    this.compositionSpan.remove();
+                    this.compositionSpan = null;
+                    this.pinyinBuffer = '';
+                    this.hideCandidates();
+                    this.currentCandidates = [];
+                    this.selectedIndex = 0;
+                    currentInputValue = input.textContent;
+                    handleInputChange(currentInputValue);
+                }
+            }
+
+            selectCandidate(localIndex) {
+                if (this.currentCandidates.length === 0) return;
+
+                const globalIndex = this.currentPage * 9 + localIndex;
+                if (globalIndex < this.currentCandidates.length) {
+                    const candidate = this.currentCandidates[globalIndex];
+                    this.replacePinyinWithText(candidate.text);
+                }
+            }
+
+            replacePinyinWithText(text) {
+                const input = document.getElementById('task-input');
+                if (!input) return;
+
+                // 如果有正在进行的拼音组合，先移除它
+                if (this.compositionSpan) {
+                    const selection = window.getSelection();
+                    if (selection.rangeCount > 0) {
+                        const range = selection.getRangeAt(0);
+                        // 删除拼音组合span
+                        this.compositionSpan.remove();
+                        // 在原位置插入选中的文本
+                        range.deleteContents();
+                        range.insertNode(document.createTextNode(text));
+                        range.collapse(false);
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                    }
+                } else {
+                    // 如果没有拼音组合，直接在光标位置插入文本
+                    const selection = window.getSelection();
+                    if (selection.rangeCount > 0) {
+                        const range = selection.getRangeAt(0);
+                        range.deleteContents();
+                        range.insertNode(document.createTextNode(text));
+                        range.collapse(false);
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                    } else {
+                        // 如果没有选区，直接追加文本
+                        input.appendChild(document.createTextNode(text));
+                    }
+                }
+
+                // 清除拼音状态
+                this.pinyinBuffer = '';
+                this.compositionSpan = null;
+                this.hideCandidates();
+                this.currentCandidates = [];
+                this.selectedIndex = 0;
+
+                // 更新输入值和处理函数
+                currentInputValue = input.textContent;
+                handleInputChange(currentInputValue);
+                input.focus();
+            }
+
+            toggleInputMode() {
+                this.inputMode = this.inputMode === 'zh' ? 'en' : 'zh';
+                const btn = document.getElementById('mode-toggle');
+                if (btn) {
+                    btn.textContent = this.inputMode === 'zh' ? '中' : '英';
+                }
+                const input = document.getElementById('task-input');
+                if (input) {
+                    this.commitPinyinAsEnglish(input);
+                }
+                if (this.emojiPickerDiv) {
+                    this.emojiPickerDiv.remove();
+                    this.emojiPickerDiv = null;
+                }
+            }
+
+            searchCandidates(pinyin) {
+                if (typeof pinyinData === 'undefined') {
+                    this.currentCandidates = [];
+                    return;
+                }
+
+                // Performance optimization: Return cached result if available
+                if (this.candidateCache.has(pinyin)) {
+                    this.currentCandidates = [...this.candidateCache.get(pinyin)];
+                    this.selectedIndex = 0;
+                    this.currentPage = 0;
+                    return;
+                }
+
+                this.currentCandidates = [];
+                this.selectedIndex = 0;
+                this.currentPage = 0;
+
+                // 精确匹配（支持带空格和不带空格的拼音）
+                for (const [key, value] of Object.entries(pinyinData)) {
+                    if (key === pinyin || key.replace(/\s+/g, '') === pinyin) {
+                        value.forEach(item => {
+                            this.currentCandidates.push({
+                                text: item[0],
+                                pinyin: key,
+                                frequency: item[1]
+                            });
+                        });
+                    }
+                }
+
+                // 前缀匹配
+                if (this.currentCandidates.length < 5) {
+                    for (const [key, value] of Object.entries(pinyinData)) {
+                        if (key.startsWith(pinyin) && key !== pinyin) {
+                            value.forEach(item => {
+                                if (this.currentCandidates.length < 20) {
+                                    this.currentCandidates.push({
+                                        text: item[0],
+                                        pinyin: key,
+                                        frequency: item[1]
+                                    });
+                                }
+                            });
+                        }
+                    }
+                }
+
+                // 混合输入匹配（如 "nih" → "你好"）
+                if (this.currentCandidates.length < 5) {
+                    for (const [key, value] of Object.entries(pinyinData)) {
+                        if (this.isMixedMatch(pinyin, key) && key !== pinyin && !key.startsWith(pinyin)) {
+                            value.forEach(item => {
+                                if (this.currentCandidates.length < 20) {
+                                    this.currentCandidates.push({
+                                        text: item[0],
+                                        pinyin: key,
+                                        frequency: item[1]
+                                    });
+                                }
+                            });
+                        }
+                    }
+                }
+
+                // 首字母匹配
+                if (this.currentCandidates.length < 5) {
+                    for (const [key, value] of Object.entries(pinyinData)) {
+                        const pinyinSyllables = key.split(' ');
+                        const firstLetters = pinyinSyllables.map(syllable => syllable.charAt(0)).join('');
+
+                        if ((firstLetters === pinyin || firstLetters.startsWith(pinyin)) &&
+                            key !== pinyin && !key.startsWith(pinyin) && firstLetters.length >= 2) {
+                            value.forEach(item => {
+                                if (this.currentCandidates.length < 20) {
+                                    this.currentCandidates.push({
+                                        text: item[0],
+                                        pinyin: key,
+                                        frequency: item[1]
+                                    });
+                                }
+                            });
+                        }
+                    }
+                }
+
+                // 按词频排序
+                this.currentCandidates.sort((a, b) => b.frequency - a.frequency);
+
+                // 限制候选词数量
+                this.currentCandidates = this.currentCandidates.slice(0, 10);
+
+                // Performance optimization: Cache the result (limit cache size)
+                if (this.candidateCache.size > 100) {
+                    // Clear oldest entries if cache gets too large
+                    const firstKey = this.candidateCache.keys().next().value;
+                    this.candidateCache.delete(firstKey);
+                }
+                this.candidateCache.set(pinyin, [...this.currentCandidates]);
+            }
+
+            // Performance optimization: Debounced search
+            debouncedSearch(pinyin, inputElement) {
+                // Clear existing timer
+                if (this.searchDebounceTimer) {
+                    clearTimeout(this.searchDebounceTimer);
+                }
+
+                // Set new timer
+                this.searchDebounceTimer = setTimeout(() => {
+                    this.searchCandidates(pinyin);
+                    this.showCandidates(inputElement);
+                }, this.searchDebounceDelay);
+            }
+
+            // Performance optimization: Clear search cache when memory is needed
+            clearSearchCache() {
+                this.candidateCache.clear();
+            }
+
+            isMixedMatch(input, target) {
+                const cleanInput = input.replace(/\s+/g, '');
+                const cleanTarget = target.replace(/\s+/g, '');
+
+                if (cleanInput === cleanTarget) {
+                    return false;
+                }
+
+                const targetSyllables = target.split(/\s+/);
+
+                if (targetSyllables.length >= 2) {
+                    const match1 = this.tryMixedMatch(cleanInput, targetSyllables);
+                    if (match1) {
+                        return true;
+                    }
+                }
+
+                const match2 = this.tryCharacterLevelMatch(cleanInput, cleanTarget);
+                if (match2) {
+                    return true;
+                }
+
+                return false;
+            }
+
+            tryMixedMatch(input, targetSyllables) {
+                for (let splitPoint = 1; splitPoint < input.length; splitPoint++) {
+                    const part1 = input.substring(0, splitPoint);
+                    const part2 = input.substring(splitPoint);
+
+                    const firstSyllableMatch = targetSyllables[0].startsWith(part1) ||
+                                              targetSyllables[0] === part1 ||
+                                              (part1.length === 1 && targetSyllables[0].charAt(0) === part1);
+
+                    const remainingInput = part2;
+                    const remainingTarget = targetSyllables.slice(1).join('');
+
+                    if (firstSyllableMatch && this.tryCharacterLevelMatch(remainingInput, remainingTarget)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            tryCharacterLevelMatch(input, target) {
+                let inputIndex = 0;
+                let targetIndex = 0;
+
+                while (inputIndex < input.length && targetIndex < target.length) {
+                    const inputChar = input[inputIndex];
+                    const targetChar = target[targetIndex];
+
+                    if (inputChar === targetChar) {
+                        inputIndex++;
+                        targetIndex++;
+                    } else if (inputIndex === 0 && input.length === 1 && targetIndex === 0) {
+                        if (targetChar === inputChar) {
+                            return true;
+                        }
+                        break;
+                    } else {
+                        if (targetChar === ' ') {
+                            targetIndex++;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+
+                return inputIndex === input.length;
+            }
+
+            selectPreviousCandidate() {
+                if (this.selectedIndex > 0) {
+                    this.selectedIndex--;
+                    this.updateCandidateSelection();
+                }
+            }
+
+            selectNextCandidate() {
+                if (this.selectedIndex < Math.min(this.currentCandidates.length - (this.currentPage * 9), 9) - 1) {
+                    this.selectedIndex++;
+                    this.updateCandidateSelection();
+                }
+            }
+
+            updateCandidateSelection() {
+                if (!this.candidateDiv) return;
+
+                const items = this.candidateDiv.querySelectorAll('.candidate-item');
+                items.forEach((item, index) => {
+                    if (index === this.selectedIndex) {
+                        item.style.background = '#667eea';
+                        item.style.color = 'white';
+                    } else {
+                        item.style.background = 'transparent';
+                        item.style.color = 'inherit';
+                    }
+                });
+            }
+
+            handlePinyinInput(event, input) {
+                if (typeof pinyinData === 'undefined') return;
+
+                const key = event.key.toLowerCase();
+
+                if (key === 'shift') {
+                    this.shiftIsDown = true;
+                    this.shiftPressedAlone = true;
+                    event.preventDefault();
+                    return;
+                }
+
+                if (this.shiftIsDown) {
+                    this.shiftPressedAlone = false;
+                }
+
+                if (this.inputMode !== 'zh') {
+                    this.commitPinyinAsEnglish(input);
+                    return;
+                }
+
+                // Chinese mode
+                if (key.length === 1 && /[a-z]/.test(key)) {
+                    event.preventDefault();
+                    if (!this.pinyinBuffer) {
+                        this.compositionSpan = document.createElement('span');
+                        this.compositionSpan.className = 'pinyin-span';
+                        this.compositionSpan.style.textDecoration = 'underline';
+                        this.compositionSpan.style.textDecorationColor = 'rgba(255, 255, 255, 0.5)';
+
+                        const selection = window.getSelection();
+                        if (selection.rangeCount > 0) {
+                            const range = selection.getRangeAt(0);
+                            range.deleteContents();
+                            range.insertNode(this.compositionSpan);
+                            range.setStartAfter(this.compositionSpan);
+                            range.collapse(true);
+                        } else {
+                            input.appendChild(this.compositionSpan);
+                        }
+                        this.currentPage = 0;
+                    }
+                    this.pinyinBuffer += key;
+                    this.currentPage = 0;
+                    this.compositionSpan.textContent = this.pinyinBuffer;
+                    // Performance optimization: Use debounced search
+                    this.debouncedSearch(this.pinyinBuffer, input);
+                    return;
+                }
+
+                if (/[1-9]/.test(key) && this.pinyinBuffer && this.candidateDiv) {
+                    event.preventDefault();
+                    const localIndex = parseInt(key) - 1;
+                    this.selectCandidate(localIndex);
+                    return;
+                }
+
+                if (key === ' ' && this.currentCandidates.length > 0) {
+                    event.preventDefault();
+                    this.selectCandidate(this.selectedIndex);
+                    return;
+                }
+
+                if (key === '=' && this.currentCandidates.length > 0 && this.candidateDiv) {
+                    event.preventDefault();
+                    const maxPage = Math.ceil(this.currentCandidates.length / 9) - 1;
+                    if (this.currentPage < maxPage) {
+                        this.currentPage++;
+                        this.selectedIndex = 0;
+                        this.showCandidates(input);
+                    }
+                    return;
+                }
+
+                if (key === '-' && this.currentCandidates.length > 0 && this.candidateDiv) {
+                    event.preventDefault();
+                    if (this.currentPage > 0) {
+                        this.currentPage--;
+                        this.selectedIndex = 0;
+                        this.showCandidates(input);
+                    }
+                    return;
+                }
+
+                if (key === 'arrowup' && this.currentCandidates.length > 0) {
+                    event.preventDefault();
+                    this.selectPreviousCandidate();
+                    return;
+                }
+
+                if (key === 'arrowdown' && this.currentCandidates.length > 0) {
+                    event.preventDefault();
+                    this.selectNextCandidate();
+                    return;
+                }
+
+                if (key === 'enter' && this.pinyinBuffer) {
+                    event.preventDefault();
+                    this.commitPinyinAsEnglish(input);
+                    return;
+                }
+
+                if (key === 'backspace') {
+                    if (this.pinyinBuffer) {
+                        event.preventDefault();
+                        this.pinyinBuffer = this.pinyinBuffer.slice(0, -1);
+                        if (this.pinyinBuffer) {
+                            this.currentPage = 0;
+                            this.selectedIndex = 0;
+                            this.compositionSpan.textContent = this.pinyinBuffer;
+                            // Performance optimization: Use debounced search
+                            this.debouncedSearch(this.pinyinBuffer, input);
+                        } else {
+                            this.compositionSpan.remove();
+                            this.compositionSpan = null;
+                            this.hideCandidates();
+                            this.currentCandidates = [];
+                        }
+                        return;
+                    }
+                }
+
+                // For other keys, commit pinyin first
+                this.commitPinyinAsEnglish(input);
+            }
+
+            handleKeyUp(event) {
+                const key = event.key.toLowerCase();
+                if (key === 'shift') {
+                    if (this.shiftPressedAlone) {
+                        this.toggleInputMode();
+                    }
+                    this.shiftIsDown = false;
+                    this.shiftPressedAlone = true;
+                }
+                resetInactivity();
+            }
+        }
+
+        // Global instance
+        const pinyinInputMethod = new PinyinInputMethod();
+
+        // Global wrapper functions for backward compatibility
+        function toggleInputMode() {
+            pinyinInputMethod.toggleInputMode();
+        }
+
+        function handleKeyUp(event) {
+            pinyinInputMethod.handleKeyUp(event);
+        }
+
+        function handlePinyinInput(event, input) {
+            pinyinInputMethod.handlePinyinInput(event, input);
+        }
+
+        function toggleEmojiPicker() {
+            const input = document.getElementById('task-input');
+            pinyinInputMethod.toggleEmojiPicker(input);
+        }
+
+        function hideCandidates() {
+            pinyinInputMethod.hideCandidates();
+        }
+
+        // Global variables for input handling
+        let currentInputValue = '';
+        let inactivityTimer;
+
+        function resetInactivity() {
+            clearTimeout(inactivityTimer);
+            inactivityTimer = setTimeout(() => {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                if (state.selectedDate.getTime() !== today.getTime()) {
+                    selectDate(today);
+                }
+            }, 5 * 60 * 1000); // 10 minutes
+        }
+
+        function computeMaxDur(start, date) {
+            const dateStr = date.toDateString();
+            const tasks = state.tasks[dateStr] || [];
+            let d = 0;
+            while (true) {
+                const pos = start + d;
+                if (pos >= 22) break;
+                if (tasks.some(t => t.startHour <= pos && pos < t.startHour + t.duration)) break;
+                d++;
+            }
+            return Math.max(d, 1);
+        }
+
+        function updateDurationMax() {
+            const startEl = document.getElementById('start-hour');
+            if (!startEl) return;
+            const start = parseInt(startEl.value);
+            const maxD = computeMaxDur(start, state.currentDateForAdd);
+            const durEl = document.getElementById('duration');
+            durEl.max = maxD;
+            if (parseInt(durEl.value) > maxD) durEl.value = maxD;
+            updateAddButton();
+        }
+
+        function updateAddButton() {
+            const addBtn = document.getElementById('add-task-btn');
+            if (!addBtn) return;
+            const text = currentInputValue.trim();
+            const dur = parseInt(document.getElementById('duration').value);
+            addBtn.disabled = !text || dur < 1;
+        }
+
+        function toggleDeadline() {
+            const repeatSelect = document.getElementById('repeat-select');
+            const deadlineDiv = document.getElementById('deadline-div');
+            if (repeatSelect && deadlineDiv) {
+                deadlineDiv.style.display = repeatSelect.value === 'none' ? 'none' : 'block';
+            }
+        }
+
+        function updateProgressBar(dateStr) {
+            const progressBar = document.getElementById(`progress-bar-${dateStr}`);
+            if (!progressBar) return;
+
+            const now = new Date();
+            const hour = now.getHours();
+            const minute = now.getMinutes();
+            if (hour < 8 || hour > 22) {
+                progressBar.style.display = 'none';
+                return;
+            }
+
+            let row, fraction;
+            if (hour === 22) {
+                row = 14;
+                fraction = 0;
+            } else {
+                row = hour - 8;
+                fraction = minute / 60;
+            }
+            const position = (row + fraction) / 14 * 100;
+            progressBar.style.top = `${position}%`;
+            progressBar.style.display = 'block';
+        }
+
+        // Event handlers
+        function selectDate(date) {
+            date.setHours(0, 0, 0, 0);
+            const oldDateStr = state.selectedDate.toDateString();
+            state.selectedDate = date;
+            saveState();
+            
+            // Update calendar to show new selection (both when month changes and when selection changes within same month)
+            const oldViewMonth = state.viewStartDate.getMonth();
+            const oldViewYear = state.viewStartDate.getFullYear();
+            const newViewMonth = date.getMonth();
+            const newViewYear = date.getFullYear();
+            
+            if (oldViewMonth !== newViewMonth || oldViewYear !== newViewYear || oldDateStr !== date.toDateString()) {
+                renderCalendar();
+            }
+            
+            renderTodo(state.selectedDate);
+            resetInactivity();
+        }
+
+        function backToToday() {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            state.selectedDate = today;
+            const day = today.getDay();
+            const currentWeekStart = new Date(today);
+            currentWeekStart.setDate(today.getDate() - (day === 0 ? 6 : day - 1));
+            state.viewStartDate = new Date(currentWeekStart);
+            state.viewStartDate.setDate(currentWeekStart.getDate() - 7);
+            state.viewStartDate.setHours(0, 0, 0, 0);
+            saveState();
+            renderCalendar();
+            renderTodo(state.selectedDate);
+            resetInactivity();
+        }
+
+        function openAddDialog(startHour, date = state.selectedDate) {
+            state.initialStartHour = startHour;
+            state.currentDateForAdd = date;
+            state.showAddDialog = true;
+            currentInputValue = '';
+
+            // Reset pinyin input method state
+            pinyinInputMethod.pinyinBuffer = '';
+            pinyinInputMethod.compositionSpan = null;
+            pinyinInputMethod.currentPage = 0;
+            pinyinInputMethod.hideCandidates();
+            pinyinInputMethod.currentCandidates = [];
+            pinyinInputMethod.selectedIndex = 0;
+
+            renderModals();
+            setTimeout(() => {
+                const input = document.getElementById('task-input');
+                if (input) {
+                    input.focus();
+                    input.textContent = currentInputValue;
+                }
+                const btn = document.getElementById('mode-toggle');
+                if (btn) {
+                    btn.textContent = pinyinInputMethod.inputMode === 'zh' ? '中' : '英';
+                }
+                updateDurationMax();
+                updateAddButton();
+                toggleDeadline();
+
+                // Reset color selections to default on dialog open
+                selectTaskBgColor('default');
+                selectTaskBorderColor('default');
+            }, 50);
+        }
+
+        function closeAddDialog() {
+            state.showAddDialog = false;
+            state.initialStartHour = null;
+            state.maxDuration = null;
+            state.currentDateForAdd = null;
+            currentInputValue = '';
+
+            // Reset pinyin input method state
+            pinyinInputMethod.pinyinBuffer = '';
+            pinyinInputMethod.compositionSpan = null;
+            pinyinInputMethod.hideCandidates();
+            pinyinInputMethod.currentCandidates = [];
+            pinyinInputMethod.selectedIndex = 0;
+
+            renderModals();
+            renderTodo(state.selectedDate); // Refresh todo after close
+        }
+
+        function handleInputChange(value) {
+            currentInputValue = value;
+            updateAddButton();
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                addTask();
+                event.preventDefault();
+            }
+        }
+
+        function addTask() {
+            // Commit any ongoing pinyin input
+            const input = document.getElementById('task-input');
+            if (input) {
+                pinyinInputMethod.commitPinyinAsEnglish(input);
+            }
+
+            const taskText = currentInputValue.trim();
+            if (!taskText) return;
+            const startHour = parseInt(document.getElementById('start-hour').value);
+            const duration = parseInt(document.getElementById('duration').value);
+            const repeatEl = document.getElementById('repeat-select');
+            const repeat = repeatEl ? repeatEl.value : 'none';
+            const addDate = state.currentDateForAdd || state.selectedDate;
+            const dateStr = addDate.toDateString();
+            if (!state.tasks[dateStr]) {
+                state.tasks[dateStr] = [];
+            }
+            const seriesId = repeat !== 'none' ? Date.now().toString() : null;
+            const taskId = Date.now().toString();
+            const newTask = {
+                id: taskId,
+                text: taskText,
+                completed: false,
+                startHour: startHour,
+                duration: duration,
+                seriesId: seriesId,
+                repeat: repeat,
+                backgroundColor: selectedTaskBgColor === 'default' ? null : selectedTaskBgColor,
+                borderColor: selectedTaskBorderColor === 'default' ? null : selectedTaskBorderColor
+            };
+            if (repeat !== 'none') {
+                const numEl = document.getElementById('repeat-num');
+                const unitEl = document.getElementById('repeat-unit');
+                if (numEl && unitEl) {
+                    newTask.repeatDuration = parseInt(numEl.value);
+                    newTask.repeatUnit = unitEl.value;
+                }
+            }
+            // Check for overlaps for initial
+            const hasOverlap = state.tasks[dateStr].some(t => {
+                const tEnd = t.startHour + t.duration;
+                const newEnd = newTask.startHour + newTask.duration;
+                return !(newEnd <= t.startHour || newTask.startHour >= tEnd);
+            });
+            if (hasOverlap) {
+                showAlert("Conflicts with existing task!");
+                return;
+            }
+            // Check if in past for today
+            if (isToday(addDate)) {
+                const now = new Date();
+                const ch = now.getHours();
+                const cm = now.getMinutes();
+                const effectiveCurrent = ch + (cm > 0 ? 1 : 0);
+                if (startHour < effectiveCurrent) {
+                    showAlert("Cannot add task in the past!");
+                    return;
+                }
+            }
+            state.tasks[dateStr].push(newTask);
+            state.tasks[dateStr].sort((a, b) => a.startHour - b.startHour);
+            // Generate future instances if recurring
+            if (seriesId && repeat !== 'none') {
+                const intervalDays = getInterval(repeat);
+                let futureDate = new Date(addDate);
+                futureDate.setDate(futureDate.getDate() + intervalDays);
+                let endDate = new Date(addDate);
+                const num = newTask.repeatDuration || 1;
+                const unit = newTask.repeatUnit || 'weeks';
+                if (unit === 'weeks') {
+                    endDate.setDate(endDate.getDate() + num * 7);
+                } else {
+                    endDate.setMonth(endDate.getMonth() + num);
+                }
+                while (futureDate <= endDate) {
+                    const fDateStr = futureDate.toDateString();
+                    if (!state.tasks[fDateStr]) state.tasks[fDateStr] = [];
+                    const futureTask = {
+                        id: `${seriesId}_${futureDate.getTime()}`,
+                        text: newTask.text,
+                        completed: false,
+                        startHour: newTask.startHour,
+                        duration: newTask.duration,
+                        seriesId: seriesId,
+                        repeat: repeat,
+                        repeatDuration: newTask.repeatDuration,
+                        repeatUnit: newTask.repeatUnit,
+                        backgroundColor: newTask.backgroundColor,
+                        borderColor: newTask.borderColor
+                    };
+                    // Check overlap for future
+                    const fOverlaps = state.tasks[fDateStr].some(t =>
+                        !(futureTask.startHour + futureTask.duration <= t.startHour ||
+                          futureTask.startHour >= t.startHour + t.duration)
+                    );
+                    if (!fOverlaps) {
+                        state.tasks[fDateStr].push(futureTask);
+                        state.tasks[fDateStr].sort((a, b) => a.startHour - b.startHour);
+                    }
+                    futureDate.setDate(futureDate.getDate() + intervalDays);
+                }
+            }
+            currentInputValue = '';
+            state.showAddDialog = false;
+            state.initialStartHour = null;
+            state.currentDateForAdd = null;
+
+            // Reset pinyin input method state
+            pinyinInputMethod.pinyinBuffer = '';
+            pinyinInputMethod.compositionSpan = null;
+            pinyinInputMethod.hideCandidates();
+            pinyinInputMethod.currentCandidates = [];
+            pinyinInputMethod.selectedIndex = 0;
+
+            saveState();
+            renderCalendar(); // Update task counts
+            renderTodo(state.selectedDate);
+            renderModals();
+        }
+
+        function toggleTask(taskId, date) {
+            const dateStr = date.toDateString();
+            if (state.tasks[dateStr]) {
+                const task = state.tasks[dateStr].find(t => t.id === taskId);
+                if (task) {
+                    task.completed = !task.completed;
+                    saveState();
+
+                    // Update only the specific task element instead of re-rendering everything
+                    // Use a more specific selector to find the task element
+                    const taskElements = document.querySelectorAll('.task-item');
+                    for (const taskElement of taskElements) {
+                        const checkbox = taskElement.querySelector('.task-checkbox');
+                        const text = taskElement.querySelector('.task-text');
+                        const deleteBtn = taskElement.querySelector('.delete-btn');
+
+                        // Check if this is the right task by looking at the onclick attribute
+                        if (checkbox && checkbox.getAttribute('onclick') &&
+                            checkbox.getAttribute('onclick').includes(`toggleTask('${taskId}'`)) {
+
+                            checkbox.classList.toggle('completed', task.completed);
+                            text.classList.toggle('completed', task.completed);
+                            checkbox.innerHTML = task.completed ? `<span class="icon" style="color: white;">${icons.check}</span>` : '';
+
+                            // 移除过期任务的视觉效果
+                            if (task.completed) {
+                                taskElement.classList.remove('overdue');
+                            } else {
+                                // 重新检查是否过期
+                                const isOverdue = isTaskOverdue(task, date);
+                                taskElement.classList.toggle('overdue', isOverdue);
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        function deleteTask(taskId, date) {
+            const dateStr = date.toDateString();
+            if (!state.tasks[dateStr]) return;
+            const taskIndex = state.tasks[dateStr].findIndex(t => t.id === taskId);
+            if (taskIndex === -1) return;
+            const task = state.tasks[dateStr][taskIndex];
+            if (task.seriesId) {
+                state.confirmTaskId = taskId;
+                state.confirmDateStr = dateStr;
+                state.showDeleteConfirm = true;
+                renderModals();
+                return;
+            } else {
+                // Normal single delete
+                state.deletedTasks.push({task: {...task}, dateStr});
+                if (state.deletedTasks.length > 5) {
+                    state.deletedTasks.shift();
+                }
+                state.tasks[dateStr].splice(taskIndex, 1);
+                if (state.tasks[dateStr].length === 0) {
+                    delete state.tasks[dateStr];
+                }
+                saveState();
+                renderTodo(date); // Only re-render the affected todo
+                renderCalendar(); // Update task counts if needed
+            }
+        }
+
+        function cancelDeleteConfirm() {
+            state.showDeleteConfirm = false;
+            state.confirmTaskId = null;
+            state.confirmDateStr = null;
+            renderModals();
+        }
+
+        function confirmDeleteThis() {
+            const dateStr = state.confirmDateStr;
+            const taskIndex = state.tasks[dateStr].findIndex(t => t.id === state.confirmTaskId);
+            if (taskIndex !== -1) {
+                const task = state.tasks[dateStr][taskIndex];
+                state.deletedTasks.push({task: {...task}, dateStr});
+                if (state.deletedTasks.length > 5) {
+                    state.deletedTasks.shift();
+                }
+                state.tasks[dateStr].splice(taskIndex, 1);
+                if (state.tasks[dateStr].length === 0) {
+                    delete state.tasks[dateStr];
+                }
+                saveState();
+                const date = new Date(dateStr);
+                renderTodo(date);
+                renderCalendar();
+            }
+            state.showDeleteConfirm = false;
+            state.confirmTaskId = null;
+            state.confirmDateStr = null;
+            renderModals();
+        }
+
+        function confirmDeleteAll() {
+            const dateStr = state.confirmDateStr;
+            const task = state.tasks[dateStr].find(t => t.id === state.confirmTaskId);
+            if (task && task.seriesId) {
+                Object.keys(state.tasks).forEach(dStr => {
+                    if (state.tasks[dStr]) {
+                        state.tasks[dStr] = state.tasks[dStr].filter(t => t.seriesId !== task.seriesId);
+                    }
+                });
+                // Clean empty arrays
+                Object.keys(state.tasks).forEach(dStr => {
+                    if (state.tasks[dStr] && state.tasks[dStr].length === 0) {
+                        delete state.tasks[dStr];
+                    }
+                });
+            }
+            state.showDeleteConfirm = false;
+            state.confirmTaskId = null;
+            state.confirmDateStr = null;
+            saveState();
+            renderTodo(state.selectedDate); // Re-render current todo
+            renderCalendar(); // Update counts across calendar
+            renderModals();
+        }
+
+        function undoDelete() {
+            if (state.deletedTasks.length === 0) {
+                showAlert(t('No deleted tasks to undo.'));
+                return;
+            }
+            const last = state.deletedTasks.pop();
+            const {task, dateStr} = last;
+            if (!state.tasks[dateStr]) state.tasks[dateStr] = [];
+            state.tasks[dateStr].push(task);
+            state.tasks[dateStr].sort((a, b) => a.startHour - b.startHour);
+            saveState();
+            const date = new Date(dateStr);
+            renderTodo(date); // Re-render the affected todo
+            if (date.toDateString() === state.selectedDate.toDateString()) {
+                renderTodo(state.selectedDate);
+            }
+            renderCalendar();
+        }
+
+        function openSettings() {
+            state.showSettings = true;
+            renderModals();
+        }
+
+        function closeSettings() {
+            state.showSettings = false;
+            renderModals();
+        }
+
+        function setBackground(bg) {
+            state.backgroundImage = bg;
+            saveState();
+            state.showSettings = false;
+            fullRender(); // Background change affects desktop style
+        }
+
+        function loadCustomBackground() {
+            const fileInput = document.getElementById('custom-bg-input');
+            const file = fileInput.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                state.backgroundImage = `url(${e.target.result})`;
+                saveState();
+                state.showSettings = false;
+                fullRender(); // Background change
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function changeValue(id, delta) {
+            const el = document.getElementById(id);
+            if (el) {
+                let val = parseInt(el.value) || parseInt(el.min);
+                val += delta;
+                val = Math.max(parseInt(el.min), Math.min(parseInt(el.max), val));
+                el.value = val;
+                if (id === 'start-hour') updateDurationMax();
+                if (id === 'duration') updateAddButton();
+            }
+        }
+
+        function resolveConflicts(choice) {
+            if (choice === 'new') {
+                Object.keys(state.pendingConflicts).forEach(dateStr => {
+                    let existing = state.tasks[dateStr];
+                    let newConf = state.pendingConflicts[dateStr];
+                    state.tasks[dateStr] = existing.filter(ex => {
+                        let conflicts = false;
+                        for (let newT of newConf) {
+                            if (!(newT.startHour + newT.duration <= ex.startHour || newT.startHour >= ex.startHour + ex.duration)) {
+                                conflicts = true;
+                                break;
+                            }
+                        }
+                        return !conflicts;
+                    });
+                    state.tasks[dateStr].push(...newConf);
+                    state.tasks[dateStr].sort((a, b) => a.startHour - b.startHour);
+                });
+            }
+            // For 'original', do nothing (discard pending)
+            state.showConflictDialog = false;
+            state.conflictInfo = {};
+            state.pendingConflicts = {};
+            saveState();
+            renderModals();
+            renderCalendar(); // Update for resolved tasks
+            renderTodo(state.selectedDate);
+        }
+
+        function generateModalsHTML() {
+            let startMin = 8;
+            let startMax = 21;
+            let startVal = 8;
+            let durationMin = 1;
+            let durationMax = 14;
+            let durationVal = 1;
+            if (state.showAddDialog && state.initialStartHour) {
+                startVal = state.initialStartHour;
+                durationMax = computeMaxDur(startVal, state.currentDateForAdd);
+            }
+
+            const nextDate = new Date(state.selectedDate);
+            nextDate.setDate(nextDate.getDate() + 1);
+
+            const locale = state.currentLanguage === 'zh' ? 'zh-CN' : 'en-US';
+            const months = state.currentLanguage === 'en' ? ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'] : ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
+
+            let modalsHTML = '';
+
+            if (state.showAddDialog) {
+                modalsHTML += `
+                    <div class="modal-overlay" onclick="if(event.target === this) closeAddDialog()">
+                        <div class="modal">
+                            <h3 class="modal-title">${t('Add New Task')}</h3>
+                            <div class="input-wrapper">
+                                <div 
+                                    id="task-input"
+                                    class="task-input" 
+                                    contenteditable="true"
+                                    onkeydown="handlePinyinInput(event, this);"
+                                    onkeyup="handleKeyUp(event);"
+                                    oninput="handleInputChange(this.textContent); updateAddButton();"
+                                    onkeypress="handleKeyPress(event)"
+                                ></div>
+                                <button id="mode-toggle" class="mode-toggle" onclick="toggleInputMode()">
+                                    ${pinyinInputMethod.inputMode === 'zh' ? '中' : '英'}
+                                </button>
+                                <button id="emoji-btn" class="emoji-btn" onclick="toggleEmojiPicker()">😀</button>
+                            </div>
+                            <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                                <div style="flex: 1;">
+                                    <label style="color: var(--ui-text-color, white); display: block; margin-bottom: 0.25rem; font-size: 0.875rem;">${t('Start Hour')}</label>
+                                    <div class="number-input-wrapper">
+                                        <input type="number" id="start-hour" class="number-input" value="${startVal}" min="${startMin}" max="${startMax}" step="1" onchange="updateDurationMax(); updateAddButton();" />
+                                        <div class="inc-dec-wrapper">
+                                            <button class="inc-dec-btn" onclick="changeValue('start-hour', 1); updateAddButton();">+</button>
+                                            <button class="inc-dec-btn" onclick="changeValue('start-hour', -1); updateAddButton();">-</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style="flex: 1;">
+                                    <label style="color: var(--ui-text-color, white); display: block; margin-bottom: 0.25rem; font-size: 0.875rem;">${t('Duration (hours)')}</label>
+                                    <div class="number-input-wrapper">
+                                        <input type="number" id="duration" class="number-input" value="${durationVal}" min="${durationMin}" max="${durationMax}" step="1" onchange="updateAddButton();" />
+                                        <div class="inc-dec-wrapper">
+                                            <button class="inc-dec-btn" onclick="changeValue('duration', 1); updateAddButton();">+</button>
+                                            <button class="inc-dec-btn" onclick="changeValue('duration', -1); updateAddButton();">-</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style="flex: 1;">
+                                    <label style="color: var(--ui-text-color, white); display: block; margin-bottom: 0.25rem; font-size: 0.875rem;">${t('Repeat')}</label>
+                                    <select id="repeat-select" style="width: 100%; padding: 0.5rem; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.3); color: white; border-radius: 0.5rem;" onchange="toggleDeadline()">
+                                        <option value="none">${t('No Repeat')}</option>
+                                        <option value="daily">${t('Daily')}</option>
+                                        <option value="weekly">${t('Weekly')}</option>
+                                        <option value="every2days">${t('Every Two Days')}</option>
+                                        <option value="every3days">${t('Every Three Days')}</option>
+                                        <option value="every4days">${t('Every Four Days')}</option>
+                                        <option value="every5days">${t('Every Five Days')}</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div id="deadline-div" style="display: none;">
+                                <label style="color: var(--ui-text-color, white); display: block; margin-bottom: 0.25rem; font-size: 0.875rem;">${t('Repeat Duration')}</label>
+                                <div style="display: flex; gap: 0.5rem; align-items: stretch;">
+                                    <div class="number-input-wrapper" style="flex: 1;">
+                                        <input type="number" id="repeat-num" class="number-input" value="1" min="1" max="100" step="1" />
+                                        <div class="inc-dec-wrapper">
+                                            <button class="inc-dec-btn" onclick="changeValue('repeat-num', 1);">+</button>
+                                            <button class="inc-dec-btn" onclick="changeValue('repeat-num', -1);">-</button>
+                                        </div>
+                                    </div>
+                                    <select id="repeat-unit" style="flex: 1; padding: 0.5rem; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.3); color: white; border-radius: 0.5rem;">
+                                        <option value="weeks">${t('Weeks')}</option>
+                                        <option value="months">${t('Months')}</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 1rem;">
+                                <label style="color: var(--ui-text-color, white); display: block; margin-bottom: 0.5rem; font-size: 0.875rem;">${t('Task Colors')}</label>
+                                <div style="display: flex; gap: 1rem;">
+                                    <div style="flex: 1;">
+                                        <label style="color: var(--ui-text-color, white); display: block; margin-bottom: 0.25rem; font-size: 0.75rem;">${t('Background')}</label>
+                                        <div class="color-grid" style="grid-template-columns: repeat(4, 1fr); gap: 0.25rem;">
+                                            <button
+                                                class="color-option ${selectedTaskBgColor === 'default' ? 'selected' : ''}"
+                                                style="background-color: var(--content-block-bg-color, #ffffff); width: 20px; height: 20px; border: 1px dashed rgba(255,255,255,0.5);"
+                                                onclick="selectTaskBgColor('default')"
+                                                title="${t('Default')}"
+                                            >D</button>
+                                            ${taskItemBgPresets.map(color => `
+                                                <button
+                                                    class="color-option ${selectedTaskBgColor === color ? 'selected' : ''}"
+                                                    style="background-color: ${color}; width: 20px; height: 20px;"
+                                                    onclick="selectTaskBgColor('${color}')"
+                                                    title="${color}"
+                                                ></button>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                    <div style="flex: 1;">
+                                        <label style="color: var(--ui-text-color, white); display: block; margin-bottom: 0.25rem; font-size: 0.75rem;">${t('Border')}</label>
+                                        <div class="color-grid" style="grid-template-columns: repeat(4, 1fr); gap: 0.25rem;">
+                                            <button
+                                                class="color-option ${selectedTaskBorderColor === 'default' ? 'selected' : ''}"
+                                                style="background-color: var(--content-block-bg-color, #ffffff); width: 20px; height: 20px; border: 1px dashed rgba(255,255,255,0.5);"
+                                                onclick="selectTaskBorderColor('default')"
+                                                title="${t('Default')}"
+                                            >D</button>
+                                            ${contentBlockBorderPresets.map(color => `
+                                                <button
+                                                    class="color-option ${selectedTaskBorderColor === color ? 'selected' : ''}"
+                                                    style="background-color: ${color === 'transparent' ? 'var(--component-bg-color, #ffffff)' : color}; border: ${color === 'transparent' ? '1px dashed rgba(255,255,255,0.3)' : 'none'}; width: 20px; height: 20px;"
+                                                    onclick="selectTaskBorderColor('${color}')"
+                                                    title="${color === 'transparent' ? 'No border' : color}"
+                                                >${color === 'transparent' ? '×' : ''}</button>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-buttons">
+                                <button class="btn btn-secondary" onclick="closeAddDialog()">
+                                    ${t('Cancel')}
+                                </button>
+                                <button id="add-task-btn" class="btn btn-primary" onclick="addTask()" disabled>
+                                    ${t('Add Task')}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (state.showMonthPicker) {
+                modalsHTML += `
+                    <div class="modal-overlay" onclick="if(event.target === this) closeMonthPicker()">
+                        <div class="modal">
+                            <h3 class="modal-title">${t('Select Month and Year')}</h3>
+                            <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                                <select id="year-select" style="flex:1; padding: 0.5rem; background: rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.3); color:white;">
+                                    ${Array.from({length: 16}, (_,i) => 2020 + i).map(y => `<option value="${y}">${y}</option>`).join('')}
+                                </select>
+                                <select id="month-select" style="flex:1; padding: 0.5rem; background: rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.3); color:white;">
+                                    ${months.map((m, i) => `<option value="${i+1}">${m}</option>`).join('')}
+                                </select>
+                            </div>
+                            <div class="modal-buttons">
+                                <button class="btn btn-secondary" onclick="closeMonthPicker()">${t('Cancel')}</button>
+                                <button class="btn btn-primary" onclick="setMonthYear(document.getElementById('year-select').value, document.getElementById('month-select').value)">${t('Set')}</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (state.showSettings) {
+                modalsHTML += `
+                    <div class="modal-overlay" onclick="if(event.target === this) closeSettings()">
+                        <div class="modal settings-modal">
+                            <div class="settings-header">
+                                <h3 class="modal-title">${t('Settings')}</h3>
+                                <button class="close-btn" onclick="closeSettings()">
+                                    <span class="icon">${icons.x}</span>
+                                </button>
+                            </div>
+                            <div class="background-grid">
+                                ${backgroundOptions.map((bg, index) => `
+                                    <button 
+                                        class="background-option ${state.backgroundImage === bg ? 'selected' : ''}" 
+                                        style="background: ${bg}"
+                                        onclick="setBackground('${bg}')"
+                                    ></button>
+                                `).join('')}
+                            </div>
+                            <div class="custom-bg-section">
+                                <h4>${t('Custom Wallpaper')}</h4>
+                                <input type="file" id="custom-bg-input" class="custom-bg-input" accept="image/*">
+                                <button class="btn btn-primary" onclick="loadCustomBackground()">${t('Set as Background')}</button>
+                            </div>
+                            <div class="customization-section">
+                                <h4 style="color: var(--ui-text-color, white);">${t('Customization')}</h4>
+                                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;">
+                                    <div>
+                                        <div class="customization-item">
+                                            <div style="display: flex; align-items: center; margin-bottom: 0.25rem;">
+                                                <label style="flex:1; color: var(--ui-text-color, white); font-size: 0.875rem;">${t('Component Background Opacity')}</label>
+                                                <input type="checkbox" ${state.custom.useComponentOpacity ? 'checked' : ''} onchange="updateCustom('useComponentOpacity', this.checked)" />
+                                            </div>
+                                            <input type="range" min="0" max="1" step="0.01" value="${state.custom.componentBgOpacity}" onchange="updateCustom('componentBgOpacity', this.value)">
+                                        </div>
+                                        <div class="customization-item">
+                                            <label style="color: var(--ui-text-color, white); display: block; margin-bottom: 0.25rem; font-size: 0.875rem;">${t('Component Background Color')}</label>
+                                            <div class="color-grid">
+                                                ${componentBgPresets.map(color => `
+                                                    <button 
+                                                        class="color-option ${state.custom.componentBgColor === color ? 'selected' : ''}" 
+                                                        style="background-color: ${color}"
+                                                        onclick="updateCustom('componentBgColor', '${color}')"
+                                                    ></button>
+                                                `).join('')}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="customization-item">
+                                            <div style="display: flex; align-items: center; margin-bottom: 0.25rem;">
+                                                <label style="flex:1; color: var(--ui-text-color, white); font-size: 0.875rem;">${t('Content Block Background Opacity')}</label>
+                                                <input type="checkbox" ${state.custom.useContentBlockOpacity ? 'checked' : ''} onchange="updateCustom('useContentBlockOpacity', this.checked)" />
+                                            </div>
+                                            <input type="range" min="0" max="1" step="0.01" value="${state.custom.contentBlockBgOpacity}" onchange="updateCustom('contentBlockBgOpacity', this.value)">
+                                        </div>
+                                        <div class="customization-item">
+                                            <label style="color: var(--ui-text-color, white); display: block; margin-bottom: 0.25rem; font-size: 0.875rem;">${t('Content Block Background Color')}</label>
+                                            <div class="color-grid">
+                                                ${contentBlockBgPresets.map(color => `
+                                                    <button 
+                                                        class="color-option ${state.custom.contentBlockBgColor === color ? 'selected' : ''}" 
+                                                        style="background-color: ${color}"
+                                                        onclick="updateCustom('contentBlockBgColor', '${color}')"
+                                                    ></button>
+                                                `).join('')}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="customization-item">
+                                            <label style="color: var(--ui-text-color, white); display: block; margin-bottom: 0.25rem; font-size: 0.875rem;">${t('Shadow Intensity')}</label>
+                                            <input type="range" min="0" max="1" step="0.01" value="${state.custom.shadowIntensity}" onchange="updateCustom('shadowIntensity', this.value)">
+                                        </div>
+                                        <div class="customization-item">
+                                            <label style="color: var(--ui-text-color, white); display: block; margin-bottom: 0.25rem; font-size: 0.875rem;">${t('UI Text Color')}</label>
+                                            <div class="color-grid">
+                                                ${grayPresets.map(color => `
+                                                    <button 
+                                                        class="color-option ${state.custom.uiTextColor === color ? 'selected' : ''}" 
+                                                        style="background-color: ${color}"
+                                                        onclick="updateCustom('uiTextColor', '${color}')"
+                                                    ></button>
+                                                `).join('')}
+                                            </div>
+                                        </div>
+                                        <div class="customization-item">
+                                            <label style="color: var(--ui-text-color, white); display: block; margin-bottom: 0.25rem; font-size: 0.875rem;">${t('Content Text Color')}</label>
+                                            <div class="color-grid">
+                                                ${grayPresets.map(color => `
+                                                    <button 
+                                                        class="color-option ${state.custom.contentTextColor === color ? 'selected' : ''}" 
+                                                        style="background-color: ${color}"
+                                                        onclick="updateCustom('contentTextColor', '${color}')"
+                                                    ></button>
+                                                `).join('')}
+                                            </div>
+                                        </div>
+                                        <div class="customization-item">
+                                            <label style="color: var(--ui-text-color, white); display: block; margin-bottom: 0.25rem; font-size: 0.875rem;">${t('Content Block Border Color')}</label>
+                                            <div class="color-grid">
+                                                ${contentBlockBorderPresets.map(color => `
+                                                    <button
+                                                        class="color-option ${state.custom.contentBlockBorderColor === color ? 'selected' : ''}"
+                                                        style="background-color: ${color === 'transparent' ? 'var(--component-bg-color, #ffffff)' : color}; border: ${color === 'transparent' ? '1px dashed rgba(255,255,255,0.3)' : 'none'}; width: 100%; height: 2.5rem;"
+                                                        onclick="updateCustom('contentBlockBorderColor', '${color}')"
+                                                    >${color === 'transparent' ? '×' : ''}</button>
+                                                `).join('')}
+                                            </div>
+                                        </div>
+                                        <div class="customization-item">
+                                            <label style="color: var(--ui-text-color, white); display: block; margin-bottom: 0.25rem; font-size: 0.875rem;">${t('Content Block Border Thickness')}</label>
+                                            <input type="range" min="0" max="4" step="1" value="${state.custom.contentBlockBorderThickness}" onchange="updateCustom('contentBlockBorderThickness', this.value)">
+                                            <span style="color: var(--ui-text-color, white); font-size: 0.75rem;">${state.custom.contentBlockBorderThickness === 0 ? t('No border') : state.custom.contentBlockBorderThickness + 'px'}</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <div class="customization-item">
+                                            <label style="color: var(--ui-text-color, white); display: block; margin-bottom: 0.25rem; font-size: 0.875rem;">${t('Font Scale')}</label>
+                                            <input type="range" min="0.5" max="2" step="0.1" value="${state.custom.fontScale}" onchange="updateCustom('fontScale', this.value)">
+                                        </div>
+                                        <div class="customization-item">
+                                            <label style="color: var(--ui-text-color, white); display: block; margin-bottom: 0.25rem; font-size: 0.875rem;">${t('Progress Bar Height')}</label>
+                                            <input type="range" min="1" max="5" step="0.5" value="${state.custom.progressBarHeight}" onchange="updateCustom('progressBarHeight', this.value)">
+                                        </div>
+                                        <div class="customization-item">
+                                            <label style="color: var(--ui-text-color, white); display: block; margin-bottom: 0.25rem; font-size: 0.875rem;">${t('Todo View Mode')}</label>
+                                            <div class="mode-buttons">
+                                                <button class="mode-btn ${state.custom.todoMode === 'single' ? 'selected' : ''}" onclick="updateCustom('todoMode', 'single'); renderTodo(state.selectedDate); closeSettings();">${t('Single')}</button>
+                                                <button class="mode-btn ${state.custom.todoMode === 'double' ? 'selected' : ''}" onclick="updateCustom('todoMode', 'double'); renderTodo(state.selectedDate); closeSettings();">${t('Double')}</button>
+                                            </div>
+                                        </div>
+                                        <div class="customization-item">
+                                            <label style="color: var(--ui-text-color, white); display: block; margin-bottom: 0.25rem; font-size: 0.875rem;">${t('UI Language')}</label>
+                                            <div class="mode-buttons">
+                                                <button class="mode-btn ${state.currentLanguage === 'en' ? 'selected' : ''}" onclick="updateLanguage('en')">${t('English')}</button>
+                                                <button class="mode-btn ${state.currentLanguage === 'zh' ? 'selected' : ''}" onclick="updateLanguage('zh')">${t('Chinese')}</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="custom-bg-section">
+                                <h4>${t('Schedule Management')}</h4>
+                                <p style="color: #ef4444; margin-bottom: 1rem;">${t('When using this schedule via URL, clearing web data may cause data loss.')}</p>
+                                <button class="btn btn-primary" onclick="importSchedule()" style="margin-right: 0.5rem;">${t('Import from File')}</button>
+                                <button class="btn btn-primary" onclick="copyScheduleToClipboard()" style="margin-left: 0.5rem;">${t('Copy to Clipboard')}</button>
+                                <button class="btn btn-primary" onclick="exportScheduleToExcel()" style="margin-left: 0.5rem;">${t('Export as Excel')}</button>
+                            </div>
+                            <div class="modal-buttons" style="justify-content: space-between; margin-top: 1rem;">
+                                <button class="btn btn-secondary" onclick="resetSettings()">${t('Reset Settings')}</button>
+                                <button class="btn btn-danger" onclick="clearAllData()">${t('Clear All Data')}</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (state.showConfirmClear) {
+                modalsHTML += `
+                    <div class="modal-overlay" onclick="if(event.target === this) cancelClear()">
+                        <div class="modal">
+                            <h3 class="modal-title">${t('Confirm Clear All Data')}</h3>
+                            <p style="color: var(--ui-text-color, white); margin-bottom: 1rem;">${t('Are you sure you want to delete all saved data?')}</p>
+                            <div class="modal-buttons">
+                                <button class="btn btn-secondary" onclick="cancelClear()">${t('Cancel')}</button>
+                                <button class="btn btn-primary" onclick="confirmClear()">${t('Yes')}</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (state.showConfirmReset) {
+                modalsHTML += `
+                    <div class="modal-overlay" onclick="if(event.target === this) cancelReset()">
+                        <div class="modal">
+                            <h3 class="modal-title">${t('Confirm Reset Settings')}</h3>
+                            <p style="color: var(--ui-text-color, white); margin-bottom: 1rem;">${t('Are you sure you want to reset all settings to default?')}</p>
+                            <div class="modal-buttons">
+                                <button class="btn btn-secondary" onclick="cancelReset()">${t('Cancel')}</button>
+                                <button class="btn btn-primary" onclick="confirmReset()">${t('Yes')}</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (state.showConflictDialog) {
+                modalsHTML += `
+                    <div class="modal-overlay" onclick="if(event.target === this) resolveConflicts('original')">
+                        <div class="modal">
+                            <h3 class="modal-title">${t('Conflicts Detected')}</h3>
+                            <p style="color: var(--ui-text-color, white); margin-bottom: 1rem;">${t('The following dates have conflicting tasks:')}</p>
+                            <ul>
+                                ${Object.keys(state.conflictInfo).map(d => {
+                                    const date = new Date(d);
+                                    return `<li style="color: var(--ui-text-color, white);">${formatDate(date)}: ${state.conflictInfo[d]} ${t('new tasks conflict')}</li>`;
+                                }).join('')}
+                            </ul>
+                            <p style="color: var(--ui-text-color, white); margin-top: 1rem; margin-bottom: 1rem;">${t('Choose priority:')}</p>
+                            <div class="modal-buttons">
+                                <button class="btn btn-secondary" onclick="resolveConflicts('original')">${t('Keep Original')}</button>
+                                <button class="btn btn-primary" onclick="resolveConflicts('new')">${t('Use New (Replace Conflicting)')}</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (state.showDeleteConfirm) {
+                modalsHTML += `
+                    <div class="modal-overlay" onclick="if(event.target === this) cancelDeleteConfirm()">
+                        <div class="modal">
+                            <h3 class="modal-title">${t('Delete Task')}</h3>
+                            <p style="color: var(--ui-text-color, white); margin-bottom: 1rem;">${t('This is a recurring task. Choose what to delete:')}</p>
+                            <div class="modal-buttons">
+                                <button class="btn btn-secondary" onclick="cancelDeleteConfirm()">${t('Cancel')}</button>
+                                <button class="btn btn-danger" onclick="confirmDeleteThis()">${t('Delete this instance')}</button>
+                                <button class="btn btn-danger" onclick="confirmDeleteAll()">${t('Delete the entire series')}</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            if (state.showRedeployDialog) {
+                const task = getTaskById(state.redeployTaskId, state.redeployDateStr);
+                if (task) {
+                    const nextAvailableSlot = findNextAvailableSlot(task.duration);
+                    modalsHTML += `
+                        <div class="modal-overlay" onclick="if(event.target === this) closeRedeployDialog()">
+                            <div class="modal">
+                                <h3 class="modal-title">${t('Redeploy Task')}</h3>
+                                <div class="input-wrapper">
+                                    <div
+                                        id="redeploy-input"
+                                        class="task-input"
+                                        contenteditable="true"
+                                        oninput="handleRedeployInputChange(this.textContent); updateRedeployButton();"
+                                        onkeypress="handleRedeployKeyPress(event)"
+                                    >${task.text}</div>
+                                </div>
+                                <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
+                                    <div style="flex: 1;">
+                                        <label style="color: var(--ui-text-color, white); display: block; margin-bottom: 0.25rem; font-size: 0.875rem;">${t('Start Hour')}</label>
+                                        <div class="number-input-wrapper">
+                                            <input type="number" id="redeploy-start-hour" class="number-input" value="${nextAvailableSlot.startHour}" min="8" max="21" step="1" onchange="updateRedeployButton();" />
+                                            <div class="inc-dec-wrapper">
+                                                <button class="inc-dec-btn" onclick="changeRedeployValue('start-hour', 1); updateRedeployButton();">+</button>
+                                                <button class="inc-dec-btn" onclick="changeRedeployValue('start-hour', -1); updateRedeployButton();">-</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div style="flex: 1;">
+                                        <label style="color: var(--ui-text-color, white); display: block; margin-bottom: 0.25rem; font-size: 0.875rem;">${t('Duration (hours)')}</label>
+                                        <div class="number-input-wrapper">
+                                            <input type="number" id="redeploy-duration" class="number-input" value="${task.duration}" min="1" max="14" step="1" onchange="updateRedeployButton();" />
+                                            <div class="inc-dec-wrapper">
+                                                <button class="inc-dec-btn" onclick="changeRedeployValue('duration', 1); updateRedeployButton();">+</button>
+                                                <button class="inc-dec-btn" onclick="changeRedeployValue('duration', -1); updateRedeployButton();">-</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-buttons">
+                                    <button class="btn btn-secondary" onclick="closeRedeployDialog()">${t('Cancel')}</button>
+                                    <button id="redeploy-btn" class="btn btn-primary" onclick="redeployTask()">${t('Redeploy')}</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            if (state.showAlertMessage) {
+                modalsHTML += `
+                    <div class="modal-overlay" onclick="if(event.target === this) closeAlert()">
+                        <div class="modal">
+                            <p style="color: var(--ui-text-color, white); margin-bottom: 1rem;">${state.showAlertMessage}</p>
+                            <div class="modal-buttons">
+                                <button class="btn btn-primary" onclick="closeAlert()">${t('OK')}</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            modalsHTML += `<input type="file" id="import-file" style="display: none;" accept=".xlsx, .xls, .csv" onchange="handleImport(event)">`;
+
+            return modalsHTML;
+        }
+
+        function renderModals() {
+            const app = document.getElementById('app');
+            if (!app) return;
+            const existingModals = app.querySelectorAll('.modal-overlay');
+            existingModals.forEach(m => m.remove());
+            const modalsHTML = generateModalsHTML();
+            app.insertAdjacentHTML('beforeend', modalsHTML);
+        }
+
+        function generateDesktopHTML() {
+            const isImageBg = state.backgroundImage.startsWith('url(');
+            const bgStyle = `background: ${state.backgroundImage}`;
+            const sizeStyle = isImageBg ? '; background-size: cover; background-position: center; background-repeat: no-repeat' : '';
+
+            return `
+                <div class="desktop" style="${bgStyle}${sizeStyle}">
+                    ${generateCalendarHTML()}
+
+                    <div class="right-panel">
+                        <div class="todo-containers">
+                            ${state.custom.todoMode === 'single' ? renderTodoHTML(state.selectedDate) : renderTodoHTML(state.selectedDate) + renderTodoHTML(new Date(state.selectedDate.getTime() + 86400000), false)}
+                        </div>
+                        <div class="bottom-buttons">
+                            <div style="display: flex; gap: 12px;">
+                                <button class="today-btn" onclick="backToToday()">
+                                    ${t('Back to Today')}
+                                </button>
+                                <button class="undo-btn" onclick="undoDelete()">
+                                    ${t('Undo')}
+                                </button>
+                            </div>
+                            <button class="settings-btn" onclick="openSettings()">
+                                ${t('Settings')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function fullRender() {
+            const app = document.getElementById('app');
+            
+            // Use document fragment for better performance
+            const fragment = document.createDocumentFragment();
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = generateDesktopHTML();
+            
+            while (tempDiv.firstChild) {
+                fragment.appendChild(tempDiv.firstChild);
+            }
+            
+            app.innerHTML = '';
+            app.appendChild(fragment);
+            
+            updateVars();
+            // Update progress bars
+            if (isToday(state.selectedDate)) {
+                updateProgressBar(state.selectedDate.toDateString());
+            }
+            if (state.custom.todoMode === 'double') {
+                const nextDate = new Date(state.selectedDate);
+                nextDate.setDate(nextDate.getDate() + 1);
+                if (isToday(nextDate)) {
+                    updateProgressBar(nextDate.toDateString());
+                }
+            }
+        }
+
+        function partialRender() {
+            updateVars();
+            // For partial, we might need to refresh specific parts, but since custom changes affect styles, full might be safer for visuals
+            // But to optimize, only refresh if needed
+            renderTodo(state.selectedDate); // Refresh todo for style changes
+        }
+
+        // Initialize
+        loadState().then(() => {
+            requestFullRender(); // Use the new rendering system
+        });
+        resetInactivity();
+
+        // Performance optimization: Use managed event listeners
+        addEventListenerWithCleanup(document, 'mousemove', resetInactivity);
+        addEventListenerWithCleanup(document, 'keydown', resetInactivity);
+        addEventListenerWithCleanup(document, 'click', resetInactivity);
+        addEventListenerWithCleanup(document, 'touchstart', resetInactivity);
+
+        // Add cleanup on page unload
+        addEventListenerWithCleanup(window, 'beforeunload', () => {
+            cleanupEventListeners();
+            clearAllTimers();
+            clearProgressBarTimer();
+        });
+
+        // Timer management for progress bar updates
+        let progressBarInterval = null;
+
+        function startProgressBarTimer() {
+            // Clear existing timer if any
+            clearProgressBarTimer();
+
+            // Update progress bar every 5 seconds for better performance
+            progressBarInterval = setInterval(() => {
+                if (isToday(state.selectedDate)) {
+                    updateProgressBar(state.selectedDate.toDateString());
+                }
+                if (state.custom.todoMode === 'double') {
+                    const nextDate = new Date(state.selectedDate);
+                    nextDate.setDate(nextDate.getDate() + 1);
+                    if (isToday(nextDate)) {
+                        updateProgressBar(nextDate.toDateString());
+                    }
+                }
+            }, 2000); // Every 2 seconds
+
+            // Add to timer management
+            addTimer(progressBarInterval);
+        }
+
+        function clearProgressBarTimer() {
+            if (progressBarInterval) {
+                clearInterval(progressBarInterval);
+                progressBarInterval = null;
+
+                // Remove from active timers
+                const index = activeTimers.indexOf(progressBarInterval);
+                if (index > -1) {
+                    activeTimers.splice(index, 1);
+                }
+            }
+        }
+
+        // Start the timer
+        startProgressBarTimer();
+
+        // Redeploy functions
+        function openRedeployDialog(taskId, date) {
+            state.showRedeployDialog = true;
+            state.redeployTaskId = taskId;
+            state.redeployDateStr = date.toDateString();
+            renderModals();
+        }
+
+        function closeRedeployDialog() {
+            state.showRedeployDialog = false;
+            state.redeployTaskId = null;
+            state.redeployDateStr = null;
+            renderModals();
+        }
+
+        function handleRedeployInputChange(value) {
+            state.newTaskText = value;
+            updateRedeployButton();
+        }
+
+        function handleRedeployKeyPress(event) {
+            if (event.key === 'Enter') {
+                redeployTask();
+                event.preventDefault();
+            }
+        }
+
+        function changeRedeployValue(field, delta) {
+            const input = document.getElementById(`redeploy-${field}`);
+            if (input) {
+                let value = parseInt(input.value) + delta;
+                const min = parseInt(input.min);
+                const max = parseInt(input.max);
+                value = Math.max(min, Math.min(max, value));
+                input.value = value;
+                updateRedeployButton();
+            }
+        }
+
+        function updateRedeployButton() {
+            const btn = document.getElementById('redeploy-btn');
+            if (btn) {
+                const input = document.getElementById('redeploy-input');
+                const hasText = input && input.textContent.trim().length > 0;
+                btn.disabled = !hasText;
+            }
+        }
+
+        function redeployTask() {
+            const task = getTaskById(state.redeployTaskId, state.redeployDateStr);
+            if (!task) return;
+
+            const input = document.getElementById('redeploy-input');
+            const taskText = input ? input.textContent.trim() : task.text;
+            if (!taskText) return;
+
+            const startHour = parseInt(document.getElementById('redeploy-start-hour').value);
+            const duration = parseInt(document.getElementById('redeploy-duration').value);
+
+            // 删除原任务
+            deleteTask(state.redeployTaskId, new Date(state.redeployDateStr));
+
+            // 创建新任务
+            const slot = findNextAvailableSlot(duration);
+            const newDateStr = slot.date.toDateString();
+            if (!state.tasks[newDateStr]) {
+                state.tasks[newDateStr] = [];
+            }
+
+            const newTaskId = Date.now().toString();
+            const newTask = {
+                id: newTaskId,
+                text: taskText,
+                completed: false,
+                startHour: startHour,
+                duration: duration,
+                seriesId: null,
+                repeat: 'none',
+                backgroundColor: task.backgroundColor,
+                borderColor: task.borderColor
+            };
+
+            state.tasks[newDateStr].push(newTask);
+            state.tasks[newDateStr].sort((a, b) => a.startHour - b.startHour);
+            saveState();
+
+            closeRedeployDialog();
+            renderTodo(state.selectedDate);
+            renderCalendar();
+        }
+    </script>
+</body>
+</html>
