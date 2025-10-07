@@ -13,5 +13,7 @@
 建议和wallpaper Engine搭配使用
 ### 快速测试
 cmd
-``` python -m http.server 8000 ```
+``` 
+python -m http.server 8000
+```
 wallpaper Engine主界面>>打开壁纸>>open from url>>输入
