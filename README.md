@@ -24,6 +24,8 @@ Preview: https://htmlpreview.github.io/?https://github.com/6SD9/Todo-calendar-ht
 - ui支持中英切换
 - 内嵌中文拼音输入法
 
+  ![Screenshot 2025-10-07 143324 ](https://github.com/user-attachments/assets/ebc55342-bb6b-473c-b701-712f9f2e98bb)
+
 ## Use/使用
 Recommended to use together with Wallpaper Engine.<br></br>
 建议和wallpaper Engine搭配使用
@@ -50,7 +52,7 @@ You can use WinSW — see https://github.com/winsw/winsw <br></br>
 可以使用winsw，请参阅https://github.com/winsw/winsw
 
 
-![Screenshot 2025-10-07 143324 ](https://github.com/user-attachments/assets/ebc55342-bb6b-473c-b701-712f9f2e98bb)
+
 
 
 ### 其他
