@@ -13,6 +13,7 @@ Preview: https://htmlpreview.github.io/?https://github.com/6SD9/Todo-calendar-ht
 - Changeable background
 - Adjustable UI color / transparency / font size
 - Import / export schedules in XLSX format
+- The UI supports switching between Chinese and English
 - Built-in Chinese Pinyin input method  
 <br></br>
 - 快速添加/标记/删除待办
@@ -20,6 +21,7 @@ Preview: https://htmlpreview.github.io/?https://github.com/6SD9/Todo-calendar-ht
 - 可更换背景
 - ui颜色/透明度/文字大小可调
 - 支持日程导入/导出xlsx格式
+- ui支持中英切换
 - 内嵌中文拼音输入法
 
 ## Use/使用
