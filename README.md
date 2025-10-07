@@ -19,12 +19,13 @@ cmd
 ```
 cd 文件位置
 ```
+如果要改变端口号请同时更改html文中相应端口号
 ```
-python -m http.server 8000
+python -m http.server 25095
 ```
 wallpaper Engine主界面>>打开壁纸>>open from url>>
 ```
-http://localhost:8000/Todo_calendar_wallpaper.html
+http://localhost:25095/Todo_calendar_wallpaper.html
 ```
 注意：搭配wallpaper Engine使用时，必须隐藏桌面图标才能输入文字且系统中文输入法失效，请使用页面内嵌的拼音输入法。
 
