@@ -2,7 +2,7 @@
 A lightweight HTML wallpaper page for todo lists and calendars. <br></br>
 这是一个轻量的日程待办壁纸html页面。
 
-Preview: https://htmlpreview.github.io/?https://github.com/6SD9/Todo-calendar-html/blob/main/Todo_calendar_wallpaper.html
+Preview: https://htmlpreview.github.io/?https://github.com/6SD9/Todo-calendar-html/blob/main/Todo_calendar_wallpaper.html <br></br>
 预览：https://htmlpreview.github.io/?https://github.com/6SD9/Todo-calendar-html/blob/main/Todo_calendar_wallpaper.html <br></br>
 (The preview page does not include the embedded Pinyin input method.)<br></br>
 (预览页面无内嵌拼音输入法)
