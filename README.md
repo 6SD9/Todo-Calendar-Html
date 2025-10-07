@@ -40,11 +40,11 @@ wallpaper Engine主界面 → 打开壁纸 → open from url → 输入：
 ```
 http://localhost:25095/Todo_calendar_wallpaper.html
 ```
-Note: When used with Wallpaper Engine you must hide desktop icons in order to type; the system Chinese input method will not work. Please use the page’s built-in Pinyin input method.
+Note: When used with Wallpaper Engine you must hide desktop icons in order to type; the system Chinese input method will not work. Please use the page’s built-in Pinyin input method.<br></br>
 注意：搭配wallpaper Engine使用时，必须隐藏桌面图标才能输入文字且系统中文输入法失效，请使用页面内嵌的拼音输入法。
 
 ### 开机启动
-You can use WinSW — see https://github.com/winsw/winsw
+You can use WinSW — see https://github.com/winsw/winsw <br></br>
 可以使用winsw，请参阅https://github.com/winsw/winsw
 
 
@@ -52,5 +52,5 @@ You can use WinSW — see https://github.com/winsw/winsw
 
 
 ### 其他
-The Pinyin dictionary was derived from Google Pinyin IME (Apache License) and has been processed.
+The Pinyin dictionary was derived from Google Pinyin IME (Apache License) and has been processed.<br></br>
 拼音库由Google PinyinIME(Apache License)经过处理得到
